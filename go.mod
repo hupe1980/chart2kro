@@ -1,6 +1,6 @@
 module github.com/hupe1980/chart2kro
 
-go 1.25.6
+go 1.25.7
 
 require (
 	github.com/Masterminds/semver/v3 v3.4.0
