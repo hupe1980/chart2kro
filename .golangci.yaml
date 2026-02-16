@@ -41,7 +41,6 @@ linters:
         - name: time-naming
         - name: unexported-return
         - name: var-declaration
-        - name: var-naming
     gosec:
       excludes:
         - G104 # unhandled errors — covered by errcheck
