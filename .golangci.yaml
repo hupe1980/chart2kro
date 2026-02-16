@@ -10,7 +10,8 @@ formatters:
     - goimports
   settings:
     goimports:
-      local-prefixes: github.com/hupe1980/chart2kro
+      local-prefixes:
+        - github.com/hupe1980/chart2kro
 
 linters:
   enable:
