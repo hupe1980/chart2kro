@@ -32,7 +32,7 @@ go.work.sum
 # .vscode/
 
 # Build output
-chart2kro
+/chart2kro
 dist/
 
 # Custom
