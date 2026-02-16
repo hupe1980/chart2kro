@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-nginx-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: nginx
+    app.kubernetes.io/instance: {{ .Release.Name }}
+data:
+  default.conf: |
+    {{ .Values.config | nindent 4 }}

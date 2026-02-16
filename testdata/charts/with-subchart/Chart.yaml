@@ -1,0 +1,9 @@
+apiVersion: v2
+name: with-subchart
+version: 1.0.0
+description: A chart with a subchart
+type: application
+dependencies:
+  - name: backend
+    version: 1.0.0
+    condition: backend.enabled

@@ -1,0 +1,6 @@
+apiVersion: v2
+name: redis
+version: 0.1.0
+appVersion: "7.4"
+description: Redis in-memory data store with optional persistence
+type: application

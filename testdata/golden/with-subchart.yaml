@@ -1,0 +1,36 @@
+apiVersion: kro.run/v1alpha1
+kind: ResourceGraphDefinition
+metadata:
+  annotations:
+    chart2kro.dev/generated: "true"
+  labels:
+    app.kubernetes.io/managed-by: chart2kro
+    app.kubernetes.io/name: with-subchart
+    app.kubernetes.io/version: 1.0.0
+  name: with-subchart
+spec:
+  resources:
+  - id: configmap-backend
+    template:
+      apiVersion: v1
+      data:
+        name: ${schema.spec.backend.name}
+      kind: ConfigMap
+      metadata:
+        name: release-backend
+  - id: configmap-frontend
+    template:
+      apiVersion: v1
+      data:
+        name: ${schema.spec.frontend.name}
+      kind: ConfigMap
+      metadata:
+        name: release-frontend
+  schema:
+    apiVersion: with-subchart.kro.run/v1alpha1
+    kind: WithSubchart
+    spec:
+      backend:
+        name: string | default="api"
+      frontend:
+        name: string | default="web"

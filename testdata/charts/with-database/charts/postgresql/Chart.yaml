@@ -1,0 +1,4 @@
+apiVersion: v2
+name: postgresql
+version: 12.0.0
+type: application

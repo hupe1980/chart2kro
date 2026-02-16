@@ -1,0 +1,185 @@
+apiVersion: kro.run/v1alpha1
+kind: ResourceGraphDefinition
+metadata:
+  annotations:
+    chart2kro.dev/generated: "true"
+  labels:
+    app.kubernetes.io/managed-by: chart2kro
+    app.kubernetes.io/name: microservice
+    app.kubernetes.io/version: 0.1.0
+  name: microservice
+spec:
+  resources:
+  - id: configmap
+    template:
+      apiVersion: v1
+      data:
+        APP_PORT: ${schema.spec.env.APP_PORT}
+        LOG_LEVEL: ${schema.spec.env.LOG_LEVEL}
+      kind: ConfigMap
+      metadata:
+        labels:
+          app.kubernetes.io/instance: release
+          app.kubernetes.io/name: microservice
+        name: release-config
+        namespace: default
+  - dependsOn:
+    - configmap
+    id: deployment
+    readyWhen:
+    - ${self.status.availableReplicas == self.status.replicas}
+    template:
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        labels:
+          app.kubernetes.io/instance: release
+          app.kubernetes.io/name: microservice
+        name: release-microservice
+        namespace: default
+      spec:
+        selector:
+          matchLabels:
+            app.kubernetes.io/instance: release
+            app.kubernetes.io/name: microservice
+        template:
+          metadata:
+            labels:
+              app.kubernetes.io/instance: release
+              app.kubernetes.io/name: microservice
+          spec:
+            containers:
+            - envFrom:
+              - configMapRef:
+                  name: release-config
+              image: ${schema.spec.image.repository}:${schema.spec.image.tag}
+              imagePullPolicy: ${schema.spec.image.pullPolicy}
+              livenessProbe:
+                httpGet:
+                  path: /healthz
+                  port: http
+                initialDelaySeconds: 10
+                periodSeconds: 15
+              name: microservice
+              ports:
+              - containerPort: ${schema.spec.service.port}
+                name: http
+                protocol: TCP
+              readinessProbe:
+                httpGet:
+                  path: /readyz
+                  port: http
+                initialDelaySeconds: 5
+                periodSeconds: 5
+              resources:
+                limits:
+                  cpu: ${schema.spec.resources.limits.cpu}
+                  memory: ${schema.spec.resources.limits.memory}
+                requests:
+                  cpu: ${schema.spec.resources.requests.cpu}
+                  memory: ${schema.spec.resources.requests.memory}
+  - id: horizontalpodautoscaler
+    template:
+      apiVersion: autoscaling/v2
+      kind: HorizontalPodAutoscaler
+      metadata:
+        labels:
+          app.kubernetes.io/instance: release
+          app.kubernetes.io/name: microservice
+        name: release-microservice
+        namespace: default
+      spec:
+        maxReplicas: ${schema.spec.autoscaling.maxReplicas}
+        metrics:
+        - resource:
+            name: cpu
+            target:
+              averageUtilization: ${schema.spec.autoscaling.targetCPUUtilization}
+              type: Utilization
+          type: Resource
+        minReplicas: ${schema.spec.autoscaling.minReplicas}
+        scaleTargetRef:
+          apiVersion: apps/v1
+          kind: Deployment
+          name: release-microservice
+  - id: ingress
+    template:
+      apiVersion: networking.k8s.io/v1
+      kind: Ingress
+      metadata:
+        labels:
+          app.kubernetes.io/instance: release
+          app.kubernetes.io/name: microservice
+        name: release-microservice
+        namespace: default
+      spec:
+        ingressClassName: ${schema.spec.ingress.className}
+        rules:
+        - host: ${schema.spec.ingress.host}
+          http:
+            paths:
+            - backend:
+                service:
+                  name: release-microservice
+                  port:
+                    number: ${schema.spec.service.port}
+              path: /
+              pathType: Prefix
+        tls: '[map[hosts:[${schema.spec.ingress.host}] secretName:release-tls]]'
+  - dependsOn:
+    - deployment
+    id: service
+    readyWhen:
+    - ${self.spec.clusterIP != ""}
+    template:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        labels:
+          app.kubernetes.io/instance: release
+          app.kubernetes.io/name: microservice
+        name: release-microservice
+        namespace: default
+      spec:
+        ports:
+        - name: http
+          port: ${schema.spec.service.port}
+          protocol: TCP
+          targetPort: http
+        selector:
+          app.kubernetes.io/instance: release
+          app.kubernetes.io/name: microservice
+        type: ${schema.spec.service.type}
+  schema:
+    apiVersion: microservice.apps.kro.run/v1alpha1
+    kind: Microservice
+    spec:
+      autoscaling:
+        maxReplicas: integer | default=10
+        minReplicas: integer | default=2
+        targetCPUUtilization: integer | default=75
+      env:
+        APP_PORT: string | default="8080"
+        LOG_LEVEL: string | default="info"
+      image:
+        pullPolicy: string | default="IfNotPresent"
+        repository: string | default="myorg/api-server"
+        tag: string | default="1.0.0"
+      ingress:
+        className: string | default="nginx"
+        host: string | default="api.example.com"
+      resources:
+        limits:
+          cpu: string | default="1"
+          memory: string | default="512Mi"
+        requests:
+          cpu: string | default="200m"
+          memory: string | default="256Mi"
+      service:
+        port: integer | default=8080
+        type: string | default="ClusterIP"
+    status:
+      deploymentAvailableReplicas: ${deployment.status.availableReplicas}
+      deploymentReadyReplicas: ${deployment.status.readyReplicas}
+      serviceClusterIP: ${service.spec.clusterIP}
+      serviceLoadBalancerIP: ${service.status.loadBalancer.?ingress[0].?ip}

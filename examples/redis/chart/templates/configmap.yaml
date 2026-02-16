@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-redis-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/instance: {{ .Release.Name }}
+data:
+  redis.conf: |
+    maxmemory-policy {{ .Values.maxmemoryPolicy }}
+    appendonly yes
+    appendfilename "appendonly.aof"
+    save 900 1
+    save 300 10
+    save 60 10000

@@ -1,0 +1,147 @@
+apiVersion: kro.run/v1alpha1
+kind: ResourceGraphDefinition
+metadata:
+  annotations:
+    chart2kro.dev/generated: "true"
+  labels:
+    app.kubernetes.io/managed-by: chart2kro
+    app.kubernetes.io/name: with-database
+    app.kubernetes.io/version: 1.0.0
+  name: with-database
+spec:
+  resources:
+  - id: deployment
+    readyWhen:
+    - ${self.status.availableReplicas == self.status.replicas}
+    template:
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: release-webapp
+        namespace: default
+      spec:
+        replicas: ${schema.spec.replicaCount}
+        selector:
+          matchLabels:
+            app: webapp
+        template:
+          metadata:
+            labels:
+              app: webapp
+          spec:
+            containers:
+            - env:
+              - name: DB_HOST
+                value: release-postgresql
+              - name: DB_PORT
+                value: "5432"
+              image: ${schema.spec.image.repository}:${schema.spec.image.tag}
+              name: webapp
+              ports:
+              - containerPort: ${schema.spec.service.port}
+  - id: secret
+    template:
+      apiVersion: v1
+      data:
+        postgresql-password: cGFzc3dvcmQ=
+      kind: Secret
+      metadata:
+        labels:
+          app.kubernetes.io/component: database
+        name: release-postgresql
+        namespace: default
+      type: Opaque
+  - dependsOn:
+    - deployment
+    id: service-webapp
+    readyWhen:
+    - ${self.spec.clusterIP != ""}
+    template:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: release-webapp
+        namespace: default
+      spec:
+        ports:
+        - port: ${schema.spec.service.port}
+          targetPort: ${schema.spec.service.port}
+        selector:
+          app: webapp
+        type: ClusterIP
+  - id: statefulset
+    readyWhen:
+    - ${self.status.readyReplicas == self.status.replicas}
+    template:
+      apiVersion: apps/v1
+      kind: StatefulSet
+      metadata:
+        labels:
+          app.kubernetes.io/component: database
+        name: release-postgresql
+        namespace: default
+      spec:
+        replicas: 1
+        selector:
+          matchLabels:
+            app: postgresql
+        serviceName: release-postgresql
+        template:
+          metadata:
+            labels:
+              app: postgresql
+              app.kubernetes.io/component: database
+          spec:
+            containers:
+            - env:
+              - name: POSTGRES_USER
+                value: ${schema.spec.postgresql.auth.username}
+              - name: POSTGRES_DB
+                value: ${schema.spec.postgresql.auth.database}
+              image: postgres:15
+              name: postgresql
+              ports:
+              - containerPort: 5432
+  - dependsOn:
+    - statefulset
+    id: service-postgresql
+    readyWhen:
+    - ${self.spec.clusterIP != ""}
+    template:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        labels:
+          app.kubernetes.io/component: database
+        name: release-postgresql
+        namespace: default
+      spec:
+        ports:
+        - port: 5432
+          targetPort: 5432
+        selector:
+          app: postgresql
+        type: ClusterIP
+  schema:
+    apiVersion: with-database.kro.run/v1alpha1
+    kind: WithDatabase
+    spec:
+      image:
+        repository: string | default="myapp"
+        tag: string | default="2.0"
+      postgresql:
+        auth:
+          database: string | default="myapp_production"
+          username: string | default="myapp"
+      replicaCount: integer | default=1
+      service:
+        port: integer | default=8080
+    status:
+      deploymentAvailableReplicas: ${deployment.status.availableReplicas}
+      deploymentReadyReplicas: ${deployment.status.readyReplicas}
+      service-postgresqlClusterIP: ${service-postgresql.spec.clusterIP}
+      service-postgresqlLoadBalancerIP: ${service-postgresql.status.loadBalancer.?ingress[0].?ip}
+      service-webappClusterIP: ${service-webapp.spec.clusterIP}
+      service-webappLoadBalancerIP: ${service-webapp.status.loadBalancer.?ingress[0].?ip}
+      statefulsetCurrentReplicas: ${statefulset.status.currentReplicas}
+      statefulsetReadyReplicas: ${statefulset.status.readyReplicas}

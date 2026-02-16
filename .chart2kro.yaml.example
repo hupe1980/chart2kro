@@ -1,0 +1,137 @@
+# chart2kro example configuration
+# Place this file as .chart2kro.yaml in the working directory or
+# $HOME/.config/chart2kro/.chart2kro.yaml
+
+# Log level controls output verbosity.
+# Valid values: debug, info, warn, error
+# Environment variable: CHART2KRO_LOG_LEVEL
+# Default: info
+log-level: info
+
+# Log format controls the output format.
+# Valid values: text, json
+# Environment variable: CHART2KRO_LOG_FORMAT
+# Default: text
+log-format: text
+
+# Disable colored output.
+# Environment variable: CHART2KRO_NO_COLOR
+# Default: false
+no-color: false
+
+# Suppress all non-essential output (overrides log-level to error).
+# Environment variable: CHART2KRO_QUIET
+# Default: false
+quiet: false
+
+# ─── Custom Conversion Profiles ─────────────────────────────────────────────
+# Define named profiles that bundle filter/exclusion settings.
+# Reference them with: chart2kro convert --profile <name>
+#
+# Available built-in profiles (no config needed):
+#   enterprise  — excludes common infra subcharts
+#                 (postgresql, redis, elasticsearch, kafka, etc.)
+#   minimal     — excludes all subchart resources, root chart only
+#   app-only    — excludes StatefulSet and PersistentVolumeClaim kinds
+#
+# Custom profiles can extend built-in ones with the "extends" field.
+
+# profiles:
+#   my-app:
+#     excludeSubcharts:
+#       - postgresql
+#       - redis
+#     excludeKinds:
+#       - PodDisruptionBudget
+#     externalResources:
+#       - "Secret:db-credentials=externalDatabaseSecret"
+#       - "Service:redis-master=externalRedisService"
+#
+#   production:
+#     extends: enterprise
+#     excludeKinds:
+#       - NetworkPolicy
+
+# ─── Security Hardening ─────────────────────────────────────────────────────
+# Enable security hardening to automatically apply Pod Security Standards,
+# resource requirements, image policies, and optional NetworkPolicy / RBAC
+# generation.
+#
+# Equivalent CLI flags:
+#   --harden --security-level restricted --generate-network-policies --generate-rbac
+
+# harden:
+#   # Enable hardening (default: false).
+#   enabled: false
+#
+#   # Pod Security Standards level: none, baseline, restricted.
+#   # Default: restricted
+#   security-level: restricted
+#
+#   # Generate deny-all NetworkPolicies with DNS egress (default: false).
+#   generate-network-policies: false
+#
+#   # Generate ServiceAccount, Role, and RoleBinding per workload (default: false).
+#   generate-rbac: false
+#
+#   # Image policy settings.
+#   images:
+#     # Warn when images use :latest or no tag (default: false).
+#     deny-latest-tag: true
+#
+#     # Warn when images are not from approved registries.
+#     allowed-registries:
+#       - gcr.io/
+#       - docker.io/library/
+#       - quay.io/
+#
+#     # Warn when images do not reference a digest (default: false).
+#     require-digests: false
+#
+#   # Default resource requests and limits injected into containers.
+#   resources:
+#     cpu-request: "100m"
+#     memory-request: "128Mi"
+#     cpu-limit: "500m"
+#     memory-limit: "512Mi"
+#
+#     # Error if any container is missing resource limits and no defaults
+#     # are configured (default: false).
+#     require-limits: false
+
+# ─── Transformation Extensibility ────────────────────────────────────────────
+# Override readiness conditions, status projections, schema types, and
+# resource IDs without writing Go code.
+
+# transformers:
+#   - match:
+#       kind: Deployment
+#       apiVersion: apps/v1
+#     readyWhen:
+#       - "${deployment.status.readyReplicas == deployment.spec.replicas}"
+#     statusFields:
+#       - name: ready
+#         celExpression: "${deployment.status.readyReplicas}"
+#       - name: available
+#         celExpression: "${deployment.status.availableReplicas}"
+#
+#   - match:
+#       kind: StatefulSet
+#     readyWhen:
+#       - "${statefulSet.status.readyReplicas == statefulSet.spec.replicas}"
+
+# schemaOverrides:
+#   replicaCount:
+#     type: integer
+#     default: "3"
+#   image.tag:
+#     type: string
+#     default: "latest"
+#   service.port:
+#     type: integer
+#     default: "8080"
+
+# resourceIdOverrides:
+#   deploymentMyApp: appDeployment
+#   serviceMyApp: appService
+#   configMapEnv: envConfig

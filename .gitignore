@@ -30,3 +30,14 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# Build output
+chart2kro
+dist/
+
+# Custom
+_prompts/
+BACKLOG*.md
+CONCEPT.md
+FINDINGS.md
+.DS_Store

@@ -1,0 +1,5 @@
+dependencies:
+  - name: backend
+    version: 1.0.0
+digest: sha256:abc123
+generated: "2024-01-01T00:00:00Z"

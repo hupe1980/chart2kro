@@ -1,0 +1,5 @@
+apiVersion: v2
+name: with-hooks
+version: 1.0.0
+description: A chart with hooks for testing
+type: application

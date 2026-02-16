@@ -1,0 +1,32 @@
+replicaCount: 1
+
+image:
+  repository: nginx
+  tag: "1.27"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 80
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 250m
+    memory: 256Mi
+
+config: |
+  server {
+    listen 80;
+    server_name _;
+    location / {
+      root /usr/share/nginx/html;
+      index index.html;
+    }
+    location /health {
+      return 200 'ok';
+      add_header Content-Type text/plain;
+    }
+  }

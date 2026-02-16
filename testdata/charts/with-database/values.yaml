@@ -1,0 +1,21 @@
+replicaCount: 1
+
+image:
+  repository: myapp
+  tag: "2.0"
+
+service:
+  port: 8080
+
+postgresql:
+  enabled: true
+  auth:
+    username: myapp
+    database: myapp_production
+
+externalDatabase:
+  host: ""
+  port: 5432
+  user: myapp
+  database: myapp_production
+  existingSecret: ""

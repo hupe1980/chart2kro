@@ -1,0 +1,10 @@
+apiVersion: v2
+name: with-database
+version: 1.0.0
+appVersion: "2.0"
+description: A web app with a bundled PostgreSQL subchart
+type: application
+dependencies:
+  - name: postgresql
+    version: 12.0.0
+    condition: postgresql.enabled

@@ -1,0 +1,15 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-migrate
+  annotations:
+    helm.sh/hook: pre-install
+    helm.sh/hook-weight: "-5"
+spec:
+  template:
+    spec:
+      containers:
+        - name: migrate
+          image: {{ .Values.image }}
+          command: ["sh", "-c", "echo migrating"]
+      restartPolicy: Never

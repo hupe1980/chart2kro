@@ -1,0 +1,6 @@
+apiVersion: v2
+name: simple
+version: 1.0.0
+appVersion: "1.0"
+description: A simple test chart
+type: application

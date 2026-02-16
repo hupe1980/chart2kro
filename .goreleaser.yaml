@@ -1,0 +1,67 @@
+version: 2
+
+project_name: chart2kro
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: chart2kro
+    main: ./cmd/chart2kro/
+    binary: chart2kro
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w
+      - -X github.com/hupe1980/chart2kro/internal/version.version={{.Version}}
+      - -X github.com/hupe1980/chart2kro/internal/version.gitCommit={{.ShortCommit}}
+      - -X github.com/hupe1980/chart2kro/internal/version.buildDate={{.Date}}
+
+archives:
+  - id: default
+    formats:
+      - tar.gz
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+    files:
+      - LICENSE
+      - README.md
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256
+
+sboms:
+  - artifacts: archive
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
+      - "^chore:"
+      - Merge pull request
+      - Merge branch
+
+release:
+  github:
+    owner: hupe1980
+    name: chart2kro
+  draft: false
+  prerelease: auto

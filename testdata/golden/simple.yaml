@@ -1,0 +1,70 @@
+apiVersion: kro.run/v1alpha1
+kind: ResourceGraphDefinition
+metadata:
+  annotations:
+    chart2kro.dev/generated: "true"
+  labels:
+    app.kubernetes.io/managed-by: chart2kro
+    app.kubernetes.io/name: simple
+    app.kubernetes.io/version: 1.0.0
+  name: simple
+spec:
+  resources:
+  - id: deployment
+    readyWhen:
+    - ${self.status.availableReplicas == self.status.replicas}
+    template:
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: release-simple
+        namespace: default
+      spec:
+        replicas: ${schema.spec.replicaCount}
+        selector:
+          matchLabels:
+            app: simple
+        template:
+          metadata:
+            labels:
+              app: simple
+          spec:
+            containers:
+            - image: ${schema.spec.image.repository}:${schema.spec.image.tag}
+              name: simple
+              ports:
+              - containerPort: ${schema.spec.service.port}
+  - dependsOn:
+    - deployment
+    id: service
+    readyWhen:
+    - ${self.spec.clusterIP != ""}
+    template:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: release-simple
+        namespace: default
+      spec:
+        ports:
+        - port: ${schema.spec.service.port}
+          targetPort: ${schema.spec.service.port}
+        selector:
+          app: simple
+        type: ${schema.spec.service.type}
+  schema:
+    apiVersion: simple.kro.run/v1alpha1
+    kind: Simple
+    spec:
+      image:
+        repository: string | default="nginx"
+        tag: string | default="1.21"
+      replicaCount: integer | default=1
+      service:
+        port: integer | default=80
+        type: string | default="ClusterIP"
+    status:
+      deploymentAvailableReplicas: ${deployment.status.availableReplicas}
+      deploymentReadyReplicas: ${deployment.status.readyReplicas}
+      serviceClusterIP: ${service.spec.clusterIP}
+      serviceLoadBalancerIP: ${service.status.loadBalancer.?ingress[0].?ip}
