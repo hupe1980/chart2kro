@@ -7,9 +7,10 @@ import (
 	"os"
 	"testing"
 
-	"github.com/hupe1980/chart2kro/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/hupe1980/chart2kro/internal/config"
 )
 
 func TestSetup_TextFormat(t *testing.T) {

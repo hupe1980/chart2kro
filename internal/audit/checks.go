@@ -146,8 +146,10 @@ func forEachWorkload(resources []*k8s.Resource, fn podSpecVisitor) {
 // RunAsRootCheck flags containers without runAsNonRoot: true.
 type RunAsRootCheck struct{}
 
+// ID returns the check identifier.
 func (c *RunAsRootCheck) ID() string { return "SEC-001" }
 
+// Run executes the check against the given resources.
 func (c *RunAsRootCheck) Run(_ context.Context, resources []*k8s.Resource) []Finding {
 	var findings []Finding
 
@@ -179,8 +181,10 @@ func (c *RunAsRootCheck) Run(_ context.Context, resources []*k8s.Resource) []Fin
 // PrivilegedCheck flags containers with privileged: true.
 type PrivilegedCheck struct{}
 
+// ID returns the check identifier.
 func (c *PrivilegedCheck) ID() string { return "SEC-002" }
 
+// Run executes the check against the given resources.
 func (c *PrivilegedCheck) Run(_ context.Context, resources []*k8s.Resource) []Finding {
 	var findings []Finding
 
@@ -206,8 +210,10 @@ func (c *PrivilegedCheck) Run(_ context.Context, resources []*k8s.Resource) []Fi
 // ResourceLimitsCheck flags containers without resource limits.
 type ResourceLimitsCheck struct{}
 
+// ID returns the check identifier.
 func (c *ResourceLimitsCheck) ID() string { return "SEC-003" }
 
+// Run executes the check against the given resources.
 func (c *ResourceLimitsCheck) Run(_ context.Context, resources []*k8s.Resource) []Finding {
 	var findings []Finding
 
@@ -235,8 +241,10 @@ func (c *ResourceLimitsCheck) Run(_ context.Context, resources []*k8s.Resource) 
 // LatestTagCheck flags images that use :latest or have no explicit tag.
 type LatestTagCheck struct{}
 
+// ID returns the check identifier.
 func (c *LatestTagCheck) ID() string { return "SEC-004" }
 
+// Run executes the check against the given resources.
 func (c *LatestTagCheck) Run(_ context.Context, resources []*k8s.Resource) []Finding {
 	var findings []Finding
 
@@ -266,8 +274,10 @@ func (c *LatestTagCheck) Run(_ context.Context, resources []*k8s.Resource) []Fin
 // HostNamespaceCheck flags pods using host namespaces.
 type HostNamespaceCheck struct{}
 
+// ID returns the check identifier.
 func (c *HostNamespaceCheck) ID() string { return "SEC-005" }
 
+// Run executes the check against the given resources.
 func (c *HostNamespaceCheck) Run(_ context.Context, resources []*k8s.Resource) []Finding {
 	var findings []Finding
 
@@ -303,8 +313,10 @@ func (c *HostNamespaceCheck) Run(_ context.Context, resources []*k8s.Resource) [
 // ReadOnlyRootFSCheck flags containers without readOnlyRootFilesystem.
 type ReadOnlyRootFSCheck struct{}
 
+// ID returns the check identifier.
 func (c *ReadOnlyRootFSCheck) ID() string { return "SEC-006" }
 
+// Run executes the check against the given resources.
 func (c *ReadOnlyRootFSCheck) Run(_ context.Context, resources []*k8s.Resource) []Finding {
 	var findings []Finding
 
@@ -330,8 +342,10 @@ func (c *ReadOnlyRootFSCheck) Run(_ context.Context, resources []*k8s.Resource) 
 // NetworkPolicyCheck flags when the resource set contains no NetworkPolicies.
 type NetworkPolicyCheck struct{}
 
+// ID returns the check identifier.
 func (c *NetworkPolicyCheck) ID() string { return "SEC-007" }
 
+// Run executes the check against the given resources.
 func (c *NetworkPolicyCheck) Run(_ context.Context, resources []*k8s.Resource) []Finding {
 	hasWorkload := false
 	hasNetPol := false
@@ -365,6 +379,7 @@ func (c *NetworkPolicyCheck) Run(_ context.Context, resources []*k8s.Resource) [
 // DangerousCapabilitiesCheck flags containers with dangerous capabilities.
 type DangerousCapabilitiesCheck struct{}
 
+// ID returns the check identifier.
 func (c *DangerousCapabilitiesCheck) ID() string { return "SEC-008" }
 
 // dangerousCaps is the set of capabilities considered dangerous.
@@ -381,6 +396,7 @@ var dangerousCaps = map[string]bool{
 	"ALL":             true,
 }
 
+// Run executes the check against the given resources.
 func (c *DangerousCapabilitiesCheck) Run(_ context.Context, resources []*k8s.Resource) []Finding {
 	var findings []Finding
 
@@ -416,8 +432,10 @@ func (c *DangerousCapabilitiesCheck) Run(_ context.Context, resources []*k8s.Res
 // BroadSelectorCheck flags Services with fewer than 2 selector labels.
 type BroadSelectorCheck struct{}
 
+// ID returns the check identifier.
 func (c *BroadSelectorCheck) ID() string { return "SEC-009" }
 
+// Run executes the check against the given resources.
 func (c *BroadSelectorCheck) Run(_ context.Context, resources []*k8s.Resource) []Finding {
 	var findings []Finding
 
@@ -455,8 +473,10 @@ func (c *BroadSelectorCheck) Run(_ context.Context, resources []*k8s.Resource) [
 // ProbeCheck flags containers without liveness or readiness probes.
 type ProbeCheck struct{}
 
+// ID returns the check identifier.
 func (c *ProbeCheck) ID() string { return "SEC-010" }
 
+// Run executes the check against the given resources.
 func (c *ProbeCheck) Run(_ context.Context, resources []*k8s.Resource) []Finding {
 	var findings []Finding
 
@@ -498,8 +518,10 @@ func (c *ProbeCheck) Run(_ context.Context, resources []*k8s.Resource) []Finding
 // IngressTLSCheck flags Ingress resources without TLS configuration.
 type IngressTLSCheck struct{}
 
+// ID returns the check identifier.
 func (c *IngressTLSCheck) ID() string { return "SEC-011" }
 
+// Run executes the check against the given resources.
 func (c *IngressTLSCheck) Run(_ context.Context, resources []*k8s.Resource) []Finding {
 	var findings []Finding
 
@@ -531,8 +553,10 @@ func (c *IngressTLSCheck) Run(_ context.Context, resources []*k8s.Resource) []Fi
 // SeccompProfileCheck flags containers without a seccomp profile.
 type SeccompProfileCheck struct{}
 
+// ID returns the check identifier.
 func (c *SeccompProfileCheck) ID() string { return "SEC-012" }
 
+// Run executes the check against the given resources.
 func (c *SeccompProfileCheck) Run(_ context.Context, resources []*k8s.Resource) []Finding {
 	var findings []Finding
 

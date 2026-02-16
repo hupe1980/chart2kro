@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/hupe1980/chart2kro/internal/version"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/hupe1980/chart2kro/internal/version"
 )
 
 func TestVersionCommand_Human(t *testing.T) {

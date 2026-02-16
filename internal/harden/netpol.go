@@ -30,7 +30,7 @@ func (g *NetworkPolicyGenerator) Name() string {
 
 // Apply generates one NetworkPolicy per workload with a deny-all default + ingress
 // from services that select it.
-func (g *NetworkPolicyGenerator) Apply(ctx context.Context, resources []*k8s.Resource, result *HardenResult) error {
+func (g *NetworkPolicyGenerator) Apply(ctx context.Context, resources []*k8s.Resource, result *Result) error {
 	// Build a map of resource names to resources for cross-referencing.
 	workloads := make(map[string]*k8s.Resource)
 	services := make(map[string]*k8s.Resource)
@@ -50,7 +50,7 @@ func (g *NetworkPolicyGenerator) Apply(ctx context.Context, resources []*k8s.Res
 		netpol := generateNetworkPolicy(name, workload, services)
 
 		result.Resources = append(result.Resources, netpol)
-		result.Changes = append(result.Changes, HardenChange{
+		result.Changes = append(result.Changes, Change{
 			ResourceID: netpol.QualifiedName(),
 			FieldPath:  "",
 			NewValue:   "generated",

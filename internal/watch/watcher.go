@@ -88,7 +88,7 @@ func Run(ctx context.Context, opts Options, runFn RunFunc) error {
 	if err != nil {
 		return fmt.Errorf("creating watcher: %w", err)
 	}
-	defer watcher.Close()
+	defer func() { _ = watcher.Close() }()
 
 	// Walk chart directory and add all subdirectories.
 	if err := addRecursive(watcher, opts.ChartDir); err != nil {
@@ -111,7 +111,7 @@ func Run(ctx context.Context, opts Options, runFn RunFunc) error {
 	sigCtx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	fmt.Fprintf(opts.Out, "watching %s (debounce=%s, validate=%t, apply=%t)\n",
+	_, _ = fmt.Fprintf(opts.Out, "watching %s (debounce=%s, validate=%t, apply=%t)\n",
 		opts.ChartDir, opts.Debounce, opts.Validate, opts.Apply)
 
 	// Initial generation.
@@ -126,7 +126,7 @@ func Run(ctx context.Context, opts Options, runFn RunFunc) error {
 	for {
 		select {
 		case <-sigCtx.Done():
-			fmt.Fprintln(opts.Out, "\nshutting down watcher")
+			_, _ = fmt.Fprintln(opts.Out, "\nshutting down watcher")
 			return nil
 
 		case event, ok := <-watcher.Events:
@@ -163,26 +163,26 @@ func doRun(ctx context.Context, opts Options, runFn RunFunc, trigger string) {
 
 	result, err := runFn(ctx)
 	if err != nil {
-		fmt.Fprintf(opts.Out, "[%s] %s → ERROR: %v\n", now, trigger, err)
+		_, _ = fmt.Fprintf(opts.Out, "[%s] %s → ERROR: %v\n", now, trigger, err)
 		return
 	}
 
-	fmt.Fprintf(opts.Out, "[%s] %s → OK (%d resources, %d schema fields)\n",
+	_, _ = fmt.Fprintf(opts.Out, "[%s] %s → OK (%d resources, %d schema fields)\n",
 		now, trigger, result.ResourceCount, result.SchemaFields)
 
 	// Report schema changes.
 	if len(result.SchemaChanges) > 0 {
-		fmt.Fprintf(opts.Out, "  schema: %s\n", SchemaDiffSummary(result.SchemaChanges))
+		_, _ = fmt.Fprintf(opts.Out, "  schema: %s\n", SchemaDiffSummary(result.SchemaChanges))
 	}
 
 	// Auto-validate (when enabled and a validate function is provided).
 	if opts.Validate && opts.ValidateFn != nil && result.OutputPath != "" {
 		if validateErr := opts.ValidateFn(ctx, result.OutputPath); validateErr != nil {
-			fmt.Fprintf(opts.Out, "  validate: FAILED: %v\n", validateErr)
+			_, _ = fmt.Fprintf(opts.Out, "  validate: FAILED: %v\n", validateErr)
 			return // skip apply on validation failure
 		}
 
-		fmt.Fprintf(opts.Out, "  validate: OK\n")
+		_, _ = fmt.Fprintf(opts.Out, "  validate: OK\n")
 	}
 
 	// Auto-apply (skipped when validation fails — early return above).
@@ -195,7 +195,7 @@ func doRun(ctx context.Context, opts Options, runFn RunFunc, trigger string) {
 func applyToCluster(ctx context.Context, opts Options, outputPath string) {
 	kubectlPath, err := exec.LookPath("kubectl")
 	if err != nil {
-		fmt.Fprintf(opts.Out, "  apply: kubectl not found on PATH\n")
+		_, _ = fmt.Fprintf(opts.Out, "  apply: kubectl not found on PATH\n")
 		return
 	}
 
@@ -207,9 +207,9 @@ func applyToCluster(ctx context.Context, opts Options, outputPath string) {
 	cmd.Stderr = opts.Out
 
 	if applyErr := cmd.Run(); applyErr != nil {
-		fmt.Fprintf(opts.Out, "  apply: FAILED: %v\n", applyErr)
+		_, _ = fmt.Fprintf(opts.Out, "  apply: FAILED: %v\n", applyErr)
 	} else {
-		fmt.Fprintf(opts.Out, "  apply: OK\n")
+		_, _ = fmt.Fprintf(opts.Out, "  apply: OK\n")
 	}
 }
 

@@ -6,9 +6,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/hupe1980/chart2kro/internal/k8s"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 func TestResourceRequirements_InjectsDefaults(t *testing.T) {
@@ -17,7 +17,7 @@ func TestResourceRequirements_InjectsDefaults(t *testing.T) {
 	})
 
 	policy := NewResourceRequirementsPolicy(DefaultResourceDefaults)
-	result := &HardenResult{Resources: []*k8s.Resource{deploy}}
+	result := &Result{Resources: []*k8s.Resource{deploy}}
 
 	err := policy.Apply(context.Background(), result.Resources, result)
 	require.NoError(t, err)
@@ -64,7 +64,7 @@ func TestResourceRequirements_PreservesExisting(t *testing.T) {
 	}
 
 	policy := NewResourceRequirementsPolicy(DefaultResourceDefaults)
-	result := &HardenResult{Resources: []*k8s.Resource{deploy}}
+	result := &Result{Resources: []*k8s.Resource{deploy}}
 
 	err := policy.Apply(context.Background(), result.Resources, result)
 	require.NoError(t, err)
@@ -102,7 +102,7 @@ func TestResourceRequirements_PartiallySet(t *testing.T) {
 	}
 
 	policy := NewResourceRequirementsPolicy(DefaultResourceDefaults)
-	result := &HardenResult{Resources: []*k8s.Resource{deploy}}
+	result := &Result{Resources: []*k8s.Resource{deploy}}
 
 	err := policy.Apply(context.Background(), result.Resources, result)
 	require.NoError(t, err)
@@ -125,7 +125,7 @@ func TestResourceRequirements_EmptyDefaults(t *testing.T) {
 
 	// Empty config means no defaults to inject.
 	policy := NewResourceRequirementsPolicy(&ResourceDefaultsConfig{})
-	result := &HardenResult{Resources: []*k8s.Resource{deploy}}
+	result := &Result{Resources: []*k8s.Resource{deploy}}
 
 	err := policy.Apply(context.Background(), result.Resources, result)
 	require.NoError(t, err)
@@ -152,7 +152,7 @@ func TestResourceRequirements_InitContainers(t *testing.T) {
 	}
 
 	policy := NewResourceRequirementsPolicy(DefaultResourceDefaults)
-	result := &HardenResult{Resources: []*k8s.Resource{deploy}}
+	result := &Result{Resources: []*k8s.Resource{deploy}}
 
 	err := policy.Apply(context.Background(), result.Resources, result)
 	require.NoError(t, err)
@@ -184,7 +184,7 @@ func TestResourceRequirements_RequireLimits_ErrorWhenMissing(t *testing.T) {
 	policy := NewResourceRequirementsPolicy(&ResourceDefaultsConfig{
 		RequireLimits: true,
 	})
-	result := &HardenResult{Resources: []*k8s.Resource{deploy}}
+	result := &Result{Resources: []*k8s.Resource{deploy}}
 
 	err := policy.Apply(context.Background(), result.Resources, result)
 	require.Error(t, err)
@@ -203,7 +203,7 @@ func TestResourceRequirements_RequireLimits_OKWithDefaults(t *testing.T) {
 		MemoryLimit:   "512Mi",
 		RequireLimits: true,
 	})
-	result := &HardenResult{Resources: []*k8s.Resource{deploy}}
+	result := &Result{Resources: []*k8s.Resource{deploy}}
 
 	err := policy.Apply(context.Background(), result.Resources, result)
 	require.NoError(t, err)
@@ -234,7 +234,7 @@ func TestResourceRequirements_RequireLimits_OKWhenAlreadySet(t *testing.T) {
 	policy := NewResourceRequirementsPolicy(&ResourceDefaultsConfig{
 		RequireLimits: true,
 	})
-	result := &HardenResult{Resources: []*k8s.Resource{deploy}}
+	result := &Result{Resources: []*k8s.Resource{deploy}}
 
 	err := policy.Apply(context.Background(), result.Resources, result)
 	require.NoError(t, err)
@@ -263,7 +263,7 @@ func TestResourceRequirements_RequireLimits_MemoryMissing(t *testing.T) {
 	policy := NewResourceRequirementsPolicy(&ResourceDefaultsConfig{
 		RequireLimits: true,
 	})
-	result := &HardenResult{Resources: []*k8s.Resource{deploy}}
+	result := &Result{Resources: []*k8s.Resource{deploy}}
 
 	err := policy.Apply(context.Background(), result.Resources, result)
 	require.Error(t, err)
@@ -282,7 +282,7 @@ func TestResourceRequirements_CronJob(t *testing.T) {
 	}
 
 	policy := NewResourceRequirementsPolicy(DefaultResourceDefaults)
-	result := &HardenResult{Resources: []*k8s.Resource{cronJob}}
+	result := &Result{Resources: []*k8s.Resource{cronJob}}
 
 	err := policy.Apply(context.Background(), result.Resources, result)
 	require.NoError(t, err)

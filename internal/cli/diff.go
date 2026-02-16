@@ -114,7 +114,7 @@ func runDiff(ctx context.Context, cmd *cobra.Command, ref string, opts *diffOpti
 
 		// Append evolution summary.
 		if evolution.HasChanges() {
-			fmt.Fprintln(w)
+			_, _ = fmt.Fprintln(w)
 			plan.FormatTable(w, evolution)
 		}
 	}

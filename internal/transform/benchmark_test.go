@@ -3,9 +3,10 @@ package transform
 import (
 	"testing"
 
-	"github.com/hupe1980/chart2kro/internal/k8s"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	"github.com/hupe1980/chart2kro/internal/k8s"
 )
 
 func makeBenchResource(kind, name string, fieldCount int) *k8s.Resource {

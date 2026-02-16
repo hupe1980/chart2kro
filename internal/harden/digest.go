@@ -65,7 +65,7 @@ func (c *HTTPRegistryClient) ResolveDigest(ctx context.Context, image string) (s
 	if err != nil {
 		return "", fmt.Errorf("querying registry %s: %w", registry, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("registry returned %d for %s/%s:%s", resp.StatusCode, registry, repo, tag)
@@ -97,7 +97,7 @@ func (c *HTTPRegistryClient) getToken(ctx context.Context, registry, repo string
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20)) // 1 MB limit for auth responses
 	if err != nil {
@@ -170,7 +170,7 @@ func (p *DigestResolverPolicy) Name() string {
 }
 
 // Apply resolves all image tags to sha256 digests.
-func (p *DigestResolverPolicy) Apply(ctx context.Context, resources []*k8s.Resource, result *HardenResult) error {
+func (p *DigestResolverPolicy) Apply(ctx context.Context, resources []*k8s.Resource, result *Result) error {
 	for _, res := range resources {
 		if !isWorkload(res) {
 			continue
@@ -200,7 +200,7 @@ func (p *DigestResolverPolicy) resolveContainerImages(
 	ctx context.Context,
 	podSpec map[string]interface{},
 	key, resID, basePath string,
-	result *HardenResult,
+	result *Result,
 ) error {
 	containers, ok := podSpec[key].([]interface{})
 	if !ok {
@@ -232,7 +232,7 @@ func (p *DigestResolverPolicy) resolveContainerImages(
 		newImage := imageWithDigest(image, digest)
 		container["image"] = newImage
 
-		result.Changes = append(result.Changes, HardenChange{
+		result.Changes = append(result.Changes, Change{
 			ResourceID: resID,
 			FieldPath:  fmt.Sprintf("%s[%s].image", basePath, name),
 			OldValue:   image,

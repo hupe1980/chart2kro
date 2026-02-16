@@ -239,9 +239,9 @@ func jsonWriteValue(buf *bytes.Buffer, v interface{}, indent string, level int) 
 		}
 	case float64:
 		if val == float64(int64(val)) {
-			fmt.Fprintf(buf, "%d", int64(val))
+			_, _ = fmt.Fprintf(buf, "%d", int64(val))
 		} else {
-			fmt.Fprintf(buf, "%g", val)
+			_, _ = fmt.Fprintf(buf, "%g", val)
 		}
 	case string:
 		buf.WriteString(jsonQuote(val))
@@ -306,7 +306,7 @@ func jsonWriteValue(buf *bytes.Buffer, v interface{}, indent string, level int) 
 		writeIndent(buf, indent, level)
 		buf.WriteByte(']')
 	default:
-		fmt.Fprintf(buf, "%v", val)
+		_, _ = fmt.Fprintf(buf, "%v", val)
 	}
 
 	return nil

@@ -292,7 +292,7 @@ func runConvert(ctx context.Context, cmd *cobra.Command, ref string, opts *conve
 }
 
 // printConvertSummary prints a human-readable summary of the conversion.
-func printConvertSummary(w io.Writer, result *transform.Result, hookResult *hooks.FilterResult, hardenResult *harden.HardenResult) {
+func printConvertSummary(w io.Writer, result *transform.Result, hookResult *hooks.FilterResult, hardenResult *harden.Result) {
 	_, _ = fmt.Fprintf(w, "\n--- Conversion Summary ---\n")
 	_, _ = fmt.Fprintf(w, "Resources:     %d\n", len(result.Resources))
 	_, _ = fmt.Fprintf(w, "Schema fields: %d\n", len(result.SchemaFields))

@@ -43,7 +43,7 @@ func (p *PSSPolicy) Name() string {
 }
 
 // Apply enforces PSS at the configured level on all workload resources.
-func (p *PSSPolicy) Apply(ctx context.Context, resources []*k8s.Resource, result *HardenResult) error {
+func (p *PSSPolicy) Apply(ctx context.Context, resources []*k8s.Resource, result *Result) error {
 	for _, res := range resources {
 		if !isWorkload(res) {
 			continue
@@ -54,6 +54,8 @@ func (p *PSSPolicy) Apply(ctx context.Context, resources []*k8s.Resource, result
 			p.applyRestricted(res, result)
 		case SecurityLevelBaseline:
 			p.applyBaseline(res, result)
+		case SecurityLevelNone:
+			// No hardening applied.
 		}
 	}
 
@@ -62,7 +64,7 @@ func (p *PSSPolicy) Apply(ctx context.Context, resources []*k8s.Resource, result
 
 // applyRestricted enforces Restricted PSS: injects full security context into
 // all containers (including init containers).
-func (p *PSSPolicy) applyRestricted(res *k8s.Resource, result *HardenResult) {
+func (p *PSSPolicy) applyRestricted(res *k8s.Resource, result *Result) {
 	podSpec := getPodSpec(res)
 	if podSpec == nil {
 		return
@@ -85,7 +87,7 @@ func (p *PSSPolicy) applyRestricted(res *k8s.Resource, result *HardenResult) {
 
 // applyBaseline enforces Baseline PSS: prevents privileged containers,
 // host namespaces, and dangerous capabilities.
-func (p *PSSPolicy) applyBaseline(res *k8s.Resource, result *HardenResult) {
+func (p *PSSPolicy) applyBaseline(res *k8s.Resource, result *Result) {
 	podSpec := getPodSpec(res)
 	if podSpec == nil {
 		return
@@ -105,7 +107,7 @@ func (p *PSSPolicy) applyBaseline(res *k8s.Resource, result *HardenResult) {
 
 // hardenContainers applies security context hardening to a list of containers.
 // If restricted is true, applies full restricted PSS; otherwise baseline only.
-func hardenContainers(podSpec map[string]interface{}, key, resID, basePath string, restricted bool, result *HardenResult) {
+func hardenContainers(podSpec map[string]interface{}, key, resID, basePath string, restricted bool, result *Result) {
 	containers, ok := podSpec[key].([]interface{})
 	if !ok {
 		return
@@ -142,7 +144,7 @@ func hardenContainers(podSpec map[string]interface{}, key, resID, basePath strin
 
 // setIfMissing sets a field only if it's not already present. If the existing
 // value conflicts, a warning is emitted instead of overriding.
-func setIfMissing(m map[string]interface{}, key string, value interface{}, resID, fieldPath, reason string, result *HardenResult) {
+func setIfMissing(m map[string]interface{}, key string, value interface{}, resID, fieldPath, reason string, result *Result) {
 	existing, exists := m[key]
 	if exists {
 		if !reflect.DeepEqual(existing, value) {
@@ -155,7 +157,7 @@ func setIfMissing(m map[string]interface{}, key string, value interface{}, resID
 
 	m[key] = value
 
-	result.Changes = append(result.Changes, HardenChange{
+	result.Changes = append(result.Changes, Change{
 		ResourceID: resID,
 		FieldPath:  fieldPath,
 		NewValue:   fmt.Sprintf("%v", value),
@@ -164,7 +166,7 @@ func setIfMissing(m map[string]interface{}, key string, value interface{}, resID
 }
 
 // enforceNotTrue emits a warning if a boolean field is explicitly true.
-func enforceNotTrue(m map[string]interface{}, key, resID, fieldPath, reason string, result *HardenResult) {
+func enforceNotTrue(m map[string]interface{}, key, resID, fieldPath, reason string, result *Result) {
 	val, exists := m[key]
 	if !exists {
 		return
@@ -177,7 +179,7 @@ func enforceNotTrue(m map[string]interface{}, key, resID, fieldPath, reason stri
 }
 
 // setDropAllCapabilities sets capabilities.drop = ["ALL"] if not already set.
-func setDropAllCapabilities(sc map[string]interface{}, resID, fieldPath string, result *HardenResult) {
+func setDropAllCapabilities(sc map[string]interface{}, resID, fieldPath string, result *Result) {
 	caps := getOrCreateMap(sc, "capabilities")
 
 	if _, exists := caps["drop"]; exists {
@@ -186,7 +188,7 @@ func setDropAllCapabilities(sc map[string]interface{}, resID, fieldPath string, 
 
 	caps["drop"] = []interface{}{"ALL"}
 
-	result.Changes = append(result.Changes, HardenChange{
+	result.Changes = append(result.Changes, Change{
 		ResourceID: resID,
 		FieldPath:  fieldPath + ".drop",
 		NewValue:   `["ALL"]`,
@@ -195,7 +197,7 @@ func setDropAllCapabilities(sc map[string]interface{}, resID, fieldPath string, 
 }
 
 // dropDangerousCapabilities drops dangerous capabilities for baseline PSS.
-func dropDangerousCapabilities(sc map[string]interface{}, resID, fieldPath string, result *HardenResult) {
+func dropDangerousCapabilities(sc map[string]interface{}, resID, fieldPath string, result *Result) {
 	caps, ok := sc["capabilities"].(map[string]interface{})
 	if !ok {
 		return
@@ -229,7 +231,7 @@ func dropDangerousCapabilities(sc map[string]interface{}, resID, fieldPath strin
 }
 
 // setSeccompProfile sets the seccomp profile to RuntimeDefault if not already set.
-func setSeccompProfile(m map[string]interface{}, resID, fieldPath string, result *HardenResult) {
+func setSeccompProfile(m map[string]interface{}, resID, fieldPath string, result *Result) {
 	if _, exists := m["seccompProfile"]; exists {
 		return
 	}
@@ -238,7 +240,7 @@ func setSeccompProfile(m map[string]interface{}, resID, fieldPath string, result
 		"type": "RuntimeDefault",
 	}
 
-	result.Changes = append(result.Changes, HardenChange{
+	result.Changes = append(result.Changes, Change{
 		ResourceID: resID,
 		FieldPath:  fieldPath + ".type",
 		NewValue:   "RuntimeDefault",

@@ -3,9 +3,10 @@ package transformer
 import (
 	"context"
 
+	"k8s.io/apimachinery/pkg/runtime/schema"
+
 	"github.com/hupe1980/chart2kro/internal/config"
 	"github.com/hupe1980/chart2kro/internal/transform"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 // configOverrideTransformer adapts a config.TransformerOverride into

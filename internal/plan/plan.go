@@ -9,19 +9,19 @@ import (
 	"github.com/hupe1980/chart2kro/internal/transform"
 )
 
-// PlanResult holds the complete plan for an RGD generation.
-type PlanResult struct {
-	Name                string            `json:"name"`
-	SchemaFields        []PlanSchemaField `json:"schemaFields"`
-	Resources           []PlanResource    `json:"resources"`
-	StatusFields        []PlanStatusField `json:"statusFields"`
-	HasBreakingChanges  bool              `json:"hasBreakingChanges,omitempty"`
-	BreakingChangeCount int               `json:"breakingChangeCount,omitempty"`
-	Evolution           *EvolutionResult  `json:"evolution,omitempty"`
+// Result holds the complete plan for an RGD generation.
+type Result struct {
+	Name                string           `json:"name"`
+	SchemaFields        []SchemaField    `json:"schemaFields"`
+	Resources           []Resource       `json:"resources"`
+	StatusFields        []StatusField    `json:"statusFields"`
+	HasBreakingChanges  bool             `json:"hasBreakingChanges,omitempty"`
+	BreakingChangeCount int              `json:"breakingChangeCount,omitempty"`
+	Evolution           *EvolutionResult `json:"evolution,omitempty"`
 }
 
-// PlanSchemaField represents a schema field in the plan output.
-type PlanSchemaField struct {
+// SchemaField represents a schema field in the plan output.
+type SchemaField struct {
 	Name     string `json:"name"`
 	Type     string `json:"type"`
 	Default  string `json:"default,omitempty"`
@@ -29,8 +29,8 @@ type PlanSchemaField struct {
 	Path     string `json:"path,omitempty"`
 }
 
-// PlanResource represents a managed resource in the plan output.
-type PlanResource struct {
+// Resource represents a managed resource in the plan output.
+type Resource struct {
 	ID          string   `json:"id"`
 	Kind        string   `json:"kind"`
 	APIVersion  string   `json:"apiVersion,omitempty"`
@@ -38,15 +38,15 @@ type PlanResource struct {
 	DependsOn   []string `json:"dependsOn,omitempty"`
 }
 
-// PlanStatusField represents a status projection in the plan output.
-type PlanStatusField struct {
+// StatusField represents a status projection in the plan output.
+type StatusField struct {
 	Name       string `json:"name"`
 	Expression string `json:"expression"`
 }
 
-// BuildPlan constructs a PlanResult from a transform.Result and the generated RGD map.
-func BuildPlan(result *transform.Result, rgdMap map[string]interface{}) *PlanResult {
-	plan := &PlanResult{
+// BuildPlan constructs a Result from a transform.Result and the generated RGD map.
+func BuildPlan(result *transform.Result, rgdMap map[string]interface{}) *Result {
+	plan := &Result{
 		Name: extractName(rgdMap),
 	}
 
@@ -58,7 +58,7 @@ func BuildPlan(result *transform.Result, rgdMap map[string]interface{}) *PlanRes
 	// Build resources.
 	for _, res := range result.Resources {
 		id := result.ResourceIDs[res]
-		pr := PlanResource{
+		pr := Resource{
 			ID:         id,
 			Kind:       res.Kind(),
 			APIVersion: res.APIVersion(),
@@ -69,12 +69,12 @@ func BuildPlan(result *transform.Result, rgdMap map[string]interface{}) *PlanRes
 
 	// If resources came out empty (no resource pointers), try from RGD map directly.
 	if len(plan.Resources) == 0 {
-		plan.Resources = buildPlanResourcesFromMap(rgdMap)
+		plan.Resources = buildResourcesFromMap(rgdMap)
 	}
 
 	// Build status fields.
 	for _, sf := range result.StatusFields {
-		plan.StatusFields = append(plan.StatusFields, PlanStatusField{
+		plan.StatusFields = append(plan.StatusFields, StatusField{
 			Name:       sf.Name,
 			Expression: sf.CELExpression,
 		})
@@ -96,15 +96,15 @@ func extractName(rgdMap map[string]interface{}) string {
 }
 
 // flattenSchemaField recursively flattens a SchemaField tree into a flat list.
-func flattenSchemaField(prefix string, field *transform.SchemaField) []PlanSchemaField {
+func flattenSchemaField(prefix string, field *transform.SchemaField) []SchemaField {
 	fullName := field.Name
 	if prefix != "" {
 		fullName = prefix + "." + field.Name
 	}
 
-	var fields []PlanSchemaField
+	var fields []SchemaField
 
-	fields = append(fields, PlanSchemaField{
+	fields = append(fields, SchemaField{
 		Name:     fullName,
 		Type:     field.Type,
 		Default:  field.Default,
@@ -119,8 +119,8 @@ func flattenSchemaField(prefix string, field *transform.SchemaField) []PlanSchem
 	return fields
 }
 
-// buildPlanResourcesFromMap extracts resource info directly from the RGD map.
-func buildPlanResourcesFromMap(rgdMap map[string]interface{}) []PlanResource {
+// buildResourcesFromMap extracts resource info directly from the RGD map.
+func buildResourcesFromMap(rgdMap map[string]interface{}) []Resource {
 	spec, ok := rgdMap["spec"].(map[string]interface{})
 	if !ok {
 		return nil
@@ -131,7 +131,7 @@ func buildPlanResourcesFromMap(rgdMap map[string]interface{}) []PlanResource {
 		return nil
 	}
 
-	var planResources []PlanResource
+	var planResources []Resource
 
 	for _, r := range resources {
 		rm, ok := r.(map[string]interface{})
@@ -142,7 +142,7 @@ func buildPlanResourcesFromMap(rgdMap map[string]interface{}) []PlanResource {
 		id, _ := rm["id"].(string)
 		kind := extractResourceKind(rm)
 
-		pr := PlanResource{
+		pr := Resource{
 			ID:   id,
 			Kind: kind,
 		}
@@ -166,21 +166,21 @@ func buildPlanResourcesFromMap(rgdMap map[string]interface{}) []PlanResource {
 }
 
 // ApplyEvolution merges evolution analysis into the plan result.
-func ApplyEvolution(plan *PlanResult, evolution *EvolutionResult) {
+func ApplyEvolution(plan *Result, evolution *EvolutionResult) {
 	plan.Evolution = evolution
 	plan.HasBreakingChanges = evolution.HasBreakingChanges()
 	plan.BreakingChangeCount = evolution.BreakingCount()
 }
 
 // FormatPlan writes a human-readable plan to the given writer.
-func FormatPlan(w io.Writer, plan *PlanResult) {
-	fmt.Fprintf(w, "Plan: %s\n", plan.Name)
-	fmt.Fprintln(w, strings.Repeat("=", 60))
+func FormatPlan(w io.Writer, plan *Result) {
+	_, _ = fmt.Fprintf(w, "Plan: %s\n", plan.Name)
+	_, _ = fmt.Fprintln(w, strings.Repeat("=", 60))
 
 	// Schema fields.
 	if len(plan.SchemaFields) > 0 {
-		fmt.Fprintln(w, "\nSchema Fields:")
-		fmt.Fprintln(w, strings.Repeat("-", 40))
+		_, _ = fmt.Fprintln(w, "\nSchema Fields:")
+		_, _ = fmt.Fprintln(w, strings.Repeat("-", 40))
 
 		for _, f := range plan.SchemaFields {
 			req := "optional"
@@ -189,17 +189,17 @@ func FormatPlan(w io.Writer, plan *PlanResult) {
 			}
 
 			if f.Default != "" {
-				fmt.Fprintf(w, "  %-25s %s (default: %s) [%s]\n", f.Name, f.Type, f.Default, req)
+				_, _ = fmt.Fprintf(w, "  %-25s %s (default: %s) [%s]\n", f.Name, f.Type, f.Default, req)
 			} else {
-				fmt.Fprintf(w, "  %-25s %s [%s]\n", f.Name, f.Type, req)
+				_, _ = fmt.Fprintf(w, "  %-25s %s [%s]\n", f.Name, f.Type, req)
 			}
 		}
 	}
 
 	// Resources.
 	if len(plan.Resources) > 0 {
-		fmt.Fprintln(w, "\nResources:")
-		fmt.Fprintln(w, strings.Repeat("-", 40))
+		_, _ = fmt.Fprintln(w, "\nResources:")
+		_, _ = fmt.Fprintln(w, strings.Repeat("-", 40))
 
 		for _, r := range plan.Resources {
 			cond := ""
@@ -207,39 +207,39 @@ func FormatPlan(w io.Writer, plan *PlanResult) {
 				cond = " (conditional)"
 			}
 
-			fmt.Fprintf(w, "  %-20s %s%s\n", r.ID, r.Kind, cond)
+			_, _ = fmt.Fprintf(w, "  %-20s %s%s\n", r.ID, r.Kind, cond)
 
 			if len(r.DependsOn) > 0 {
-				fmt.Fprintf(w, "    depends on: %s\n", strings.Join(r.DependsOn, ", "))
+				_, _ = fmt.Fprintf(w, "    depends on: %s\n", strings.Join(r.DependsOn, ", "))
 			}
 		}
 	}
 
 	// Status fields.
 	if len(plan.StatusFields) > 0 {
-		fmt.Fprintln(w, "\nStatus Projections:")
-		fmt.Fprintln(w, strings.Repeat("-", 40))
+		_, _ = fmt.Fprintln(w, "\nStatus Projections:")
+		_, _ = fmt.Fprintln(w, strings.Repeat("-", 40))
 
 		for _, s := range plan.StatusFields {
-			fmt.Fprintf(w, "  %-25s %s\n", s.Name, s.Expression)
+			_, _ = fmt.Fprintf(w, "  %-25s %s\n", s.Name, s.Expression)
 		}
 	}
 
 	// Summary footer.
-	fmt.Fprintf(w, "\nSummary: %d schema fields, %d resources, %d status projections\n",
+	_, _ = fmt.Fprintf(w, "\nSummary: %d schema fields, %d resources, %d status projections\n",
 		len(plan.SchemaFields), len(plan.Resources), len(plan.StatusFields))
 
 	// Evolution summary.
 	if plan.Evolution != nil && plan.Evolution.HasChanges() {
-		fmt.Fprintln(w)
+		_, _ = fmt.Fprintln(w)
 		FormatTable(w, plan.Evolution)
 	}
 
-	fmt.Fprintln(w)
+	_, _ = fmt.Fprintln(w)
 }
 
 // FormatPlanJSON writes the plan as JSON.
-func FormatPlanJSON(w io.Writer, plan *PlanResult) error {
+func FormatPlanJSON(w io.Writer, plan *Result) error {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 
@@ -247,8 +247,8 @@ func FormatPlanJSON(w io.Writer, plan *PlanResult) error {
 }
 
 // FormatPlanCompact writes a compact summary of the plan.
-func FormatPlanCompact(w io.Writer, plan *PlanResult) {
-	fmt.Fprintf(w, "Plan: %s -- %d schema fields, %d resources, %d status projections\n",
+func FormatPlanCompact(w io.Writer, plan *Result) {
+	_, _ = fmt.Fprintf(w, "Plan: %s -- %d schema fields, %d resources, %d status projections\n",
 		plan.Name,
 		len(plan.SchemaFields),
 		len(plan.Resources),
@@ -256,10 +256,10 @@ func FormatPlanCompact(w io.Writer, plan *PlanResult) {
 	)
 
 	if plan.Evolution != nil && plan.Evolution.HasChanges() {
-		fmt.Fprintf(w, "Evolution: %s\n", FormatCompactSummary(plan.Evolution))
+		_, _ = fmt.Fprintf(w, "Evolution: %s\n", FormatCompactSummary(plan.Evolution))
 	}
 
 	if plan.HasBreakingChanges {
-		fmt.Fprintf(w, "WARNING: %d breaking changes detected!\n", plan.BreakingChangeCount)
+		_, _ = fmt.Fprintf(w, "WARNING: %d breaking changes detected!\n", plan.BreakingChangeCount)
 	}
 }

@@ -1,6 +1,6 @@
 // Package docs generates human-readable API documentation from a
 // KRO ResourceGraphDefinition. It supports Markdown, HTML, and
-// AsciiDoc output formats, with optional example YAML generation.
+// ASCIIDoc output formats, with optional example YAML generation.
 package docs
 
 import (

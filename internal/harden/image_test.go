@@ -30,7 +30,7 @@ func TestImagePolicy_DenyLatestTag(t *testing.T) {
 			deploy := makeDeployment("app", []interface{}{makeContainer("web", tt.image)})
 
 			policy := NewImagePolicy(&ImagePolicyConfig{DenyLatestTag: true})
-			result := &HardenResult{Resources: []*k8s.Resource{deploy}}
+			result := &Result{Resources: []*k8s.Resource{deploy}}
 
 			err := policy.Apply(context.Background(), result.Resources, result)
 			require.NoError(t, err)
@@ -62,7 +62,7 @@ func TestImagePolicy_AllowedRegistries(t *testing.T) {
 			deploy := makeDeployment("app", []interface{}{makeContainer("web", tt.image)})
 
 			policy := NewImagePolicy(&ImagePolicyConfig{AllowedRegistries: tt.allowed})
-			result := &HardenResult{Resources: []*k8s.Resource{deploy}}
+			result := &Result{Resources: []*k8s.Resource{deploy}}
 
 			err := policy.Apply(context.Background(), result.Resources, result)
 			require.NoError(t, err)
@@ -92,7 +92,7 @@ func TestImagePolicy_RequireDigests(t *testing.T) {
 			deploy := makeDeployment("app", []interface{}{makeContainer("web", tt.image)})
 
 			policy := NewImagePolicy(&ImagePolicyConfig{RequireDigests: true})
-			result := &HardenResult{Resources: []*k8s.Resource{deploy}}
+			result := &Result{Resources: []*k8s.Resource{deploy}}
 
 			err := policy.Apply(context.Background(), result.Resources, result)
 			require.NoError(t, err)
@@ -116,7 +116,7 @@ func TestImagePolicy_AllPoliciesCombined(t *testing.T) {
 		AllowedRegistries: []string{"gcr.io"},
 		RequireDigests:    true,
 	})
-	result := &HardenResult{Resources: []*k8s.Resource{deploy}}
+	result := &Result{Resources: []*k8s.Resource{deploy}}
 
 	err := policy.Apply(context.Background(), result.Resources, result)
 	require.NoError(t, err)
@@ -136,7 +136,7 @@ func TestImagePolicy_EmptyImage(t *testing.T) {
 	})
 
 	policy := NewImagePolicy(&ImagePolicyConfig{DenyLatestTag: true})
-	result := &HardenResult{Resources: []*k8s.Resource{deploy}}
+	result := &Result{Resources: []*k8s.Resource{deploy}}
 
 	err := policy.Apply(context.Background(), result.Resources, result)
 	require.NoError(t, err)

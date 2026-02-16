@@ -4,9 +4,10 @@ import (
 	"context"
 	"sync"
 
+	"k8s.io/apimachinery/pkg/runtime/schema"
+
 	"github.com/hupe1980/chart2kro/internal/k8s"
 	"github.com/hupe1980/chart2kro/internal/transform"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 // Registry is a priority-ordered collection of transformers.

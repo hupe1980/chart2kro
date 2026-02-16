@@ -7,11 +7,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/hupe1980/chart2kro/internal/k8s"
 	"github.com/hupe1980/chart2kro/internal/transform"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 func TestBuildPlan_Basic(t *testing.T) {
@@ -116,11 +116,11 @@ func TestBuildPlan_FallbackToRGDMap(t *testing.T) {
 }
 
 func TestApplyEvolution(t *testing.T) {
-	p := &PlanResult{
-		SchemaFields: []PlanSchemaField{
+	p := &Result{
+		SchemaFields: []SchemaField{
 			{Name: "replicas", Type: "integer"},
 		},
-		Resources: []PlanResource{
+		Resources: []Resource{
 			{ID: "deployment", Kind: "Deployment"},
 		},
 	}
@@ -143,12 +143,12 @@ func TestApplyEvolution(t *testing.T) {
 }
 
 func TestFormatPlan_Basic(t *testing.T) {
-	p := &PlanResult{
+	p := &Result{
 		Name: "test-rgd",
-		SchemaFields: []PlanSchemaField{
+		SchemaFields: []SchemaField{
 			{Name: "replicas", Type: "integer", Default: "1"},
 		},
-		Resources: []PlanResource{
+		Resources: []Resource{
 			{ID: "deployment", Kind: "Deployment"},
 		},
 	}
@@ -163,9 +163,9 @@ func TestFormatPlan_Basic(t *testing.T) {
 }
 
 func TestFormatPlanJSON(t *testing.T) {
-	p := &PlanResult{
+	p := &Result{
 		Name: "test",
-		SchemaFields: []PlanSchemaField{
+		SchemaFields: []SchemaField{
 			{Name: "n", Type: "string"},
 		},
 	}
@@ -181,16 +181,16 @@ func TestFormatPlanJSON(t *testing.T) {
 }
 
 func TestFormatPlanCompact(t *testing.T) {
-	p := &PlanResult{
+	p := &Result{
 		Name: "test",
-		SchemaFields: []PlanSchemaField{
+		SchemaFields: []SchemaField{
 			{Name: "a", Type: "string"},
 			{Name: "b", Type: "integer"},
 		},
-		Resources: []PlanResource{
+		Resources: []Resource{
 			{ID: "r1", Kind: "Deployment"},
 		},
-		StatusFields: []PlanStatusField{
+		StatusFields: []StatusField{
 			{Name: "ready"},
 		},
 	}
@@ -204,7 +204,7 @@ func TestFormatPlanCompact(t *testing.T) {
 }
 
 func TestFormatPlanCompact_WithEvolution(t *testing.T) {
-	p := &PlanResult{
+	p := &Result{
 		Name:                "test",
 		HasBreakingChanges:  true,
 		BreakingChangeCount: 1,
@@ -250,7 +250,7 @@ func TestBuildPlan_ResourcesFromMapWithDependsOn(t *testing.T) {
 	require.Len(t, p.Resources, 2)
 
 	// Find the service resource.
-	var svc PlanResource
+	var svc Resource
 	for _, r := range p.Resources {
 		if r.ID == "service" {
 			svc = r
@@ -277,15 +277,15 @@ func TestBuildPlan_EmptyResult(t *testing.T) {
 }
 
 func TestFormatPlanJSON_Structure(t *testing.T) {
-	p := &PlanResult{
+	p := &Result{
 		Name: "json-test",
-		SchemaFields: []PlanSchemaField{
+		SchemaFields: []SchemaField{
 			{Name: "replicas", Type: "integer", Default: "3", Required: false, Path: "replicas"},
 		},
-		Resources: []PlanResource{
+		Resources: []Resource{
 			{ID: "deployment", Kind: "Deployment", APIVersion: "apps/v1"},
 		},
-		StatusFields: []PlanStatusField{
+		StatusFields: []StatusField{
 			{Name: "ready", Expression: ".deployment.status.readyReplicas"},
 		},
 		HasBreakingChanges:  true,
@@ -320,12 +320,12 @@ func TestFormatPlanJSON_Structure(t *testing.T) {
 }
 
 func TestFormatPlan_WithEvolution(t *testing.T) {
-	p := &PlanResult{
+	p := &Result{
 		Name: "evo-test",
-		SchemaFields: []PlanSchemaField{
+		SchemaFields: []SchemaField{
 			{Name: "port", Type: "integer", Default: "80"},
 		},
-		Resources: []PlanResource{
+		Resources: []Resource{
 			{ID: "svc", Kind: "Service"},
 		},
 		HasBreakingChanges:  true,

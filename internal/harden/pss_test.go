@@ -7,10 +7,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/hupe1980/chart2kro/internal/k8s"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	"github.com/hupe1980/chart2kro/internal/k8s"
 )
 
 func TestPSS_Restricted_InjectsAllFields(t *testing.T) {
@@ -19,7 +19,7 @@ func TestPSS_Restricted_InjectsAllFields(t *testing.T) {
 	})
 
 	policy := NewPSSPolicy(SecurityLevelRestricted)
-	result := &HardenResult{Resources: []*k8s.Resource{deploy}}
+	result := &Result{Resources: []*k8s.Resource{deploy}}
 
 	err := policy.Apply(context.Background(), result.Resources, result)
 	require.NoError(t, err)
@@ -79,7 +79,7 @@ func TestPSS_Restricted_InitContainersHardened(t *testing.T) {
 	}
 
 	policy := NewPSSPolicy(SecurityLevelRestricted)
-	result := &HardenResult{Resources: []*k8s.Resource{deploy}}
+	result := &Result{Resources: []*k8s.Resource{deploy}}
 
 	err := policy.Apply(context.Background(), result.Resources, result)
 	require.NoError(t, err)
@@ -129,7 +129,7 @@ func TestPSS_Restricted_AllWorkloadTypes(t *testing.T) {
 			}
 
 			policy := NewPSSPolicy(SecurityLevelRestricted)
-			result := &HardenResult{Resources: []*k8s.Resource{res}}
+			result := &Result{Resources: []*k8s.Resource{res}}
 
 			err := policy.Apply(context.Background(), result.Resources, result)
 			require.NoError(t, err)
@@ -165,7 +165,7 @@ func TestPSS_Restricted_CronJob(t *testing.T) {
 	}
 
 	policy := NewPSSPolicy(SecurityLevelRestricted)
-	result := &HardenResult{Resources: []*k8s.Resource{cronJob}}
+	result := &Result{Resources: []*k8s.Resource{cronJob}}
 
 	err := policy.Apply(context.Background(), result.Resources, result)
 	require.NoError(t, err)
@@ -208,7 +208,7 @@ func TestPSS_NonDestructiveMerge_PreservesExisting(t *testing.T) {
 	}
 
 	policy := NewPSSPolicy(SecurityLevelRestricted)
-	result := &HardenResult{Resources: []*k8s.Resource{deploy}}
+	result := &Result{Resources: []*k8s.Resource{deploy}}
 
 	err := policy.Apply(context.Background(), result.Resources, result)
 	require.NoError(t, err)
@@ -253,7 +253,7 @@ func TestPSS_NonDestructiveMerge_ConflictWarning(t *testing.T) {
 	}
 
 	policy := NewPSSPolicy(SecurityLevelRestricted)
-	result := &HardenResult{Resources: []*k8s.Resource{deploy}}
+	result := &Result{Resources: []*k8s.Resource{deploy}}
 
 	err := policy.Apply(context.Background(), result.Resources, result)
 	require.NoError(t, err)
@@ -298,7 +298,7 @@ func TestPSS_Baseline_NoPrivileged(t *testing.T) {
 	}
 
 	policy := NewPSSPolicy(SecurityLevelBaseline)
-	result := &HardenResult{Resources: []*k8s.Resource{deploy}}
+	result := &Result{Resources: []*k8s.Resource{deploy}}
 
 	err := policy.Apply(context.Background(), result.Resources, result)
 	require.NoError(t, err)
@@ -354,7 +354,7 @@ func TestPSS_Baseline_DropsDangerousCaps(t *testing.T) {
 	}
 
 	policy := NewPSSPolicy(SecurityLevelBaseline)
-	result := &HardenResult{Resources: []*k8s.Resource{deploy}}
+	result := &Result{Resources: []*k8s.Resource{deploy}}
 
 	err := policy.Apply(context.Background(), result.Resources, result)
 	require.NoError(t, err)
@@ -368,7 +368,7 @@ func TestPSS_Baseline_DoesNotEnforceRestricted(t *testing.T) {
 	deploy := makeDeployment("app", []interface{}{makeContainer("web", "nginx:1.25")})
 
 	policy := NewPSSPolicy(SecurityLevelBaseline)
-	result := &HardenResult{Resources: []*k8s.Resource{deploy}}
+	result := &Result{Resources: []*k8s.Resource{deploy}}
 
 	err := policy.Apply(context.Background(), result.Resources, result)
 	require.NoError(t, err)
@@ -389,7 +389,7 @@ func TestPSS_NoneLevel_NoChanges(t *testing.T) {
 	deploy := makeDeployment("app", []interface{}{makeContainer("web", "nginx:1.25")})
 
 	policy := NewPSSPolicy(SecurityLevelNone)
-	result := &HardenResult{Resources: []*k8s.Resource{deploy}}
+	result := &Result{Resources: []*k8s.Resource{deploy}}
 
 	err := policy.Apply(context.Background(), result.Resources, result)
 	require.NoError(t, err)
@@ -428,7 +428,7 @@ func TestPSS_Restricted_ExistingDropAll_NotDuplicated(t *testing.T) {
 	}
 
 	policy := NewPSSPolicy(SecurityLevelRestricted)
-	result := &HardenResult{Resources: []*k8s.Resource{deploy}}
+	result := &Result{Resources: []*k8s.Resource{deploy}}
 
 	err := policy.Apply(context.Background(), result.Resources, result)
 	require.NoError(t, err)
@@ -524,7 +524,7 @@ func TestPSS_Restricted_AutomountServiceAccountToken(t *testing.T) {
 	t.Run("injects when missing", func(t *testing.T) {
 		deploy := makeDeployment("app", []interface{}{makeContainer("web", "nginx:1.25")})
 		policy := NewPSSPolicy(SecurityLevelRestricted)
-		result := &HardenResult{Resources: []*k8s.Resource{deploy}}
+		result := &Result{Resources: []*k8s.Resource{deploy}}
 
 		err := policy.Apply(context.Background(), result.Resources, result)
 		require.NoError(t, err)
@@ -539,7 +539,7 @@ func TestPSS_Restricted_AutomountServiceAccountToken(t *testing.T) {
 		podSpec["automountServiceAccountToken"] = true
 
 		policy := NewPSSPolicy(SecurityLevelRestricted)
-		result := &HardenResult{Resources: []*k8s.Resource{deploy}}
+		result := &Result{Resources: []*k8s.Resource{deploy}}
 
 		err := policy.Apply(context.Background(), result.Resources, result)
 		require.NoError(t, err)
@@ -552,7 +552,7 @@ func TestPSS_Restricted_AutomountServiceAccountToken(t *testing.T) {
 	t.Run("baseline does not inject", func(t *testing.T) {
 		deploy := makeDeployment("app", []interface{}{makeContainer("web", "nginx:1.25")})
 		policy := NewPSSPolicy(SecurityLevelBaseline)
-		result := &HardenResult{Resources: []*k8s.Resource{deploy}}
+		result := &Result{Resources: []*k8s.Resource{deploy}}
 
 		err := policy.Apply(context.Background(), result.Resources, result)
 		require.NoError(t, err)

@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/hupe1980/chart2kro/internal/docs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/hupe1980/chart2kro/internal/docs"
 )
 
 func sampleDocModel() *docs.DocModel {
@@ -147,7 +148,7 @@ func TestHTMLFormatter_NoName(t *testing.T) {
 	assert.NotContains(t, buf.String(), "RGD Name")
 }
 
-func TestAsciiDocFormatter(t *testing.T) {
+func TestASCIIDocFormatter(t *testing.T) {
 	f, _ := docs.NewFormatter("asciidoc")
 	var buf bytes.Buffer
 	err := f.Format(&buf, sampleDocModel())
@@ -164,7 +165,7 @@ func TestAsciiDocFormatter(t *testing.T) {
 	assert.Contains(t, out, "deployment")
 }
 
-func TestAsciiDocFormatter_Empty(t *testing.T) {
+func TestASCIIDocFormatter_Empty(t *testing.T) {
 	model := &docs.DocModel{Kind: "Empty", APIVersion: "v1"}
 	f, _ := docs.NewFormatter("asciidoc")
 	var buf bytes.Buffer
@@ -216,7 +217,7 @@ func TestHTMLFormatter_WithExamples(t *testing.T) {
 	assert.Contains(t, out, "apiVersion: myapp.kro.run/v1alpha1")
 }
 
-func TestAsciiDocFormatter_WithExamples(t *testing.T) {
+func TestASCIIDocFormatter_WithExamples(t *testing.T) {
 	model := sampleDocModel()
 	model.IncludeExamples = true
 

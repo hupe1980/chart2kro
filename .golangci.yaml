@@ -8,6 +8,9 @@ formatters:
   enable:
     - gofmt
     - goimports
+  settings:
+    goimports:
+      local-prefixes: github.com/hupe1980/chart2kro
 
 linters:
   enable:
@@ -21,46 +24,36 @@ linters:
     - gosec
     - bodyclose
     - exhaustive
+  settings:
+    revive:
+      rules:
+        - name: blank-imports
+        - name: context-as-argument
+        - name: dot-imports
+        - name: error-naming
+        - name: error-return
+        - name: exported
+        - name: if-return
+        - name: increment-decrement
+        - name: range
+        - name: receiver-naming
+        - name: time-naming
+        - name: unexported-return
+        - name: var-declaration
+        - name: var-naming
+    gosec:
+      excludes:
+        - G104 # unhandled errors — covered by errcheck
+    exhaustive:
+      default-signifies-exhaustive: true
 
-linters-settings:
-  revive:
+  exclusions:
     rules:
-      - name: blank-imports
-      - name: context-as-argument
-      - name: dot-imports
-      - name: error-naming
-      - name: error-return
-      - name: exported
-      - name: if-return
-      - name: increment-decrement
-      - name: range
-      - name: receiver-naming
-      - name: time-naming
-      - name: unexported-return
-      - name: var-declaration
-      - name: var-naming
-
-  gosec:
-    excludes:
-      - G104 # unhandled errors — covered by errcheck
-
-  exhaustive:
-    default-signifies-exhaustive: true
-
-  goimports:
-    local-prefixes: github.com/hupe1980/chart2kro
-
-  lll:
-    line-length: 120
-
-issues:
-  exclude-rules:
-    # Test files are allowed to use hardcoded credentials and skip error checks.
-    - path: _test\.go
-      linters:
-        - gosec
-        - errcheck
-
-    # Allow dot-imports for testify in tests.
-    - path: _test\.go
-      text: "dot-imports"
+      # Test files are allowed to use hardcoded credentials and skip error checks.
+      - path: _test\.go
+        linters:
+          - gosec
+          - errcheck
+      # Allow dot-imports for testify in tests.
+      - path: _test\.go
+        text: "dot-imports"

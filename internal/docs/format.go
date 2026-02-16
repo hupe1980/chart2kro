@@ -21,7 +21,7 @@ func NewFormatter(format string) (Formatter, error) {
 	case "html":
 		return &HTMLFormatter{}, nil
 	case "asciidoc", "adoc":
-		return &AsciiDocFormatter{}, nil
+		return &ASCIIDocFormatter{}, nil
 	default:
 		return nil, fmt.Errorf("unsupported docs format: %s", format)
 	}
@@ -34,54 +34,55 @@ func NewFormatter(format string) (Formatter, error) {
 // MarkdownFormatter renders documentation as Markdown.
 type MarkdownFormatter struct{}
 
+// Format writes documentation in Markdown format.
 func (f *MarkdownFormatter) Format(w io.Writer, model *DocModel) error {
 	title := model.Title
 	if title == "" {
 		title = model.Kind + " API Reference"
 	}
 
-	fmt.Fprintf(w, "# %s\n\n", title)
-	fmt.Fprintf(w, "**API Version:** `%s`  \n", model.APIVersion)
-	fmt.Fprintf(w, "**Kind:** `%s`  \n", model.Kind)
+	_, _ = fmt.Fprintf(w, "# %s\n\n", title)
+	_, _ = fmt.Fprintf(w, "**API Version:** `%s`  \n", model.APIVersion)
+	_, _ = fmt.Fprintf(w, "**Kind:** `%s`  \n", model.Kind)
 
 	if model.Name != "" {
-		fmt.Fprintf(w, "**RGD Name:** `%s`  \n", model.Name)
+		_, _ = fmt.Fprintf(w, "**RGD Name:** `%s`  \n", model.Name)
 	}
 
-	fmt.Fprintln(w)
+	_, _ = fmt.Fprintln(w)
 
 	// Spec fields.
 	if len(model.SpecFields) > 0 {
-		fmt.Fprintf(w, "## Spec Fields\n\n")
-		fmt.Fprintln(w, "| Field | Type | Default | Path |")
-		fmt.Fprintln(w, "|-------|------|---------|------|")
+		_, _ = fmt.Fprintf(w, "## Spec Fields\n\n")
+		_, _ = fmt.Fprintln(w, "| Field | Type | Default | Path |")
+		_, _ = fmt.Fprintln(w, "|-------|------|---------|------|")
 
 		writeMarkdownFieldRows(w, model.SpecFields)
 
-		fmt.Fprintln(w)
+		_, _ = fmt.Fprintln(w)
 	}
 
 	// Status fields.
 	if len(model.StatusFields) > 0 {
-		fmt.Fprintf(w, "## Status Fields\n\n")
-		fmt.Fprintln(w, "| Field | Expression |")
-		fmt.Fprintln(w, "|-------|------------|")
+		_, _ = fmt.Fprintf(w, "## Status Fields\n\n")
+		_, _ = fmt.Fprintln(w, "| Field | Expression |")
+		_, _ = fmt.Fprintln(w, "|-------|------------|")
 
 		for _, s := range model.StatusFields {
-			fmt.Fprintf(w, "| `%s` | `%s` |\n", s.Name, s.Expression)
+			_, _ = fmt.Fprintf(w, "| `%s` | `%s` |\n", s.Name, s.Expression)
 		}
 
-		fmt.Fprintln(w)
+		_, _ = fmt.Fprintln(w)
 	}
 
 	// Resources.
 	if len(model.Resources) > 0 {
-		fmt.Fprintf(w, "## Resource Graph\n\n")
+		_, _ = fmt.Fprintf(w, "## Resource Graph\n\n")
 
 		tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 
-		fmt.Fprintln(tw, "| ID\t| Kind\t| API Version\t| Depends On\t| Ready When\t|")
-		fmt.Fprintln(tw, "|---\t|------\t|-------------\t|------------\t|------------\t|")
+		_, _ = fmt.Fprintln(tw, "| ID\t| Kind\t| API Version\t| Depends On\t| Ready When\t|")
+		_, _ = fmt.Fprintln(tw, "|---\t|------\t|-------------\t|------------\t|------------\t|")
 
 		for _, r := range model.Resources {
 			deps := "-"
@@ -94,19 +95,21 @@ func (f *MarkdownFormatter) Format(w io.Writer, model *DocModel) error {
 				ready = strings.Join(r.ReadyWhen, "; ")
 			}
 
-			fmt.Fprintf(tw, "| %s\t| %s\t| %s\t| %s\t| %s\t|\n",
+			_, _ = fmt.Fprintf(tw, "| %s\t| %s\t| %s\t| %s\t| %s\t|\n",
 				r.ID, r.Kind, r.APIVersion, deps, ready)
 		}
 
-		tw.Flush()
+		if err := tw.Flush(); err != nil {
+			return err
+		}
 
-		fmt.Fprintln(w)
+		_, _ = fmt.Fprintln(w)
 	}
 
 	// Example YAML.
 	if model.IncludeExamples {
 		example := GenerateExampleYAML(model)
-		fmt.Fprintf(w, "## Example\n\n```yaml\n%s```\n", example)
+		_, _ = fmt.Fprintf(w, "## Example\n\n```yaml\n%s```\n", example)
 	}
 
 	return nil
@@ -119,7 +122,7 @@ func writeMarkdownFieldRows(w io.Writer, fields []FieldInfo) {
 			def = "-"
 		}
 
-		fmt.Fprintf(w, "| `%s` | `%s` | %s | `%s` |\n", f.Name, f.Type, def, f.Path)
+		_, _ = fmt.Fprintf(w, "| `%s` | `%s` | %s | `%s` |\n", f.Name, f.Type, def, f.Path)
 
 		if len(f.Children) > 0 {
 			writeMarkdownFieldRows(w, f.Children)
@@ -199,6 +202,7 @@ type htmlModel struct {
 	ExampleYAML    string
 }
 
+// Format writes documentation in HTML format.
 func (f *HTMLFormatter) Format(w io.Writer, model *DocModel) error {
 	title := model.Title
 	if title == "" {
@@ -233,62 +237,63 @@ func flattenFields(fields []FieldInfo) []FieldInfo {
 }
 
 // ---------------------------------------------------------------------------
-// AsciiDoc
+// ASCIIDoc
 // ---------------------------------------------------------------------------
 
-// AsciiDocFormatter renders documentation as AsciiDoc.
-type AsciiDocFormatter struct{}
+// ASCIIDocFormatter renders documentation as ASCIIDoc.
+type ASCIIDocFormatter struct{}
 
-func (f *AsciiDocFormatter) Format(w io.Writer, model *DocModel) error {
+// Format renders the documentation model as ASCIIDoc.
+func (f *ASCIIDocFormatter) Format(w io.Writer, model *DocModel) error {
 	title := model.Title
 	if title == "" {
 		title = model.Kind + " API Reference"
 	}
 
-	fmt.Fprintf(w, "= %s\n\n", title)
-	fmt.Fprintf(w, "*API Version:* `%s` +\n", model.APIVersion)
-	fmt.Fprintf(w, "*Kind:* `%s` +\n", model.Kind)
+	_, _ = fmt.Fprintf(w, "= %s\n\n", title)
+	_, _ = fmt.Fprintf(w, "*API Version:* `%s` +\n", model.APIVersion)
+	_, _ = fmt.Fprintf(w, "*Kind:* `%s` +\n", model.Kind)
 
 	if model.Name != "" {
-		fmt.Fprintf(w, "*RGD Name:* `%s` +\n", model.Name)
+		_, _ = fmt.Fprintf(w, "*RGD Name:* `%s` +\n", model.Name)
 	}
 
-	fmt.Fprintln(w)
+	_, _ = fmt.Fprintln(w)
 
 	// Spec fields.
 	if len(model.SpecFields) > 0 {
-		fmt.Fprintf(w, "== Spec Fields\n\n")
-		fmt.Fprintln(w, "[cols=\"1,1,1,2\", options=\"header\"]")
-		fmt.Fprintln(w, "|===")
-		fmt.Fprintln(w, "| Field | Type | Default | Path")
+		_, _ = fmt.Fprintf(w, "== Spec Fields\n\n")
+		_, _ = fmt.Fprintln(w, "[cols=\"1,1,1,2\", options=\"header\"]")
+		_, _ = fmt.Fprintln(w, "|===")
+		_, _ = fmt.Fprintln(w, "| Field | Type | Default | Path")
 
-		writeAsciiDocFieldRows(w, model.SpecFields)
+		writeASCIIDocFieldRows(w, model.SpecFields)
 
-		fmt.Fprintln(w, "|===")
-		fmt.Fprintln(w)
+		_, _ = fmt.Fprintln(w, "|===")
+		_, _ = fmt.Fprintln(w)
 	}
 
 	// Status fields.
 	if len(model.StatusFields) > 0 {
-		fmt.Fprintf(w, "== Status Fields\n\n")
-		fmt.Fprintln(w, "[cols=\"1,2\", options=\"header\"]")
-		fmt.Fprintln(w, "|===")
-		fmt.Fprintln(w, "| Field | Expression")
+		_, _ = fmt.Fprintf(w, "== Status Fields\n\n")
+		_, _ = fmt.Fprintln(w, "[cols=\"1,2\", options=\"header\"]")
+		_, _ = fmt.Fprintln(w, "|===")
+		_, _ = fmt.Fprintln(w, "| Field | Expression")
 
 		for _, s := range model.StatusFields {
-			fmt.Fprintf(w, "\n| `%s`\n| `%s`\n", s.Name, s.Expression)
+			_, _ = fmt.Fprintf(w, "\n| `%s`\n| `%s`\n", s.Name, s.Expression)
 		}
 
-		fmt.Fprintln(w, "|===")
-		fmt.Fprintln(w)
+		_, _ = fmt.Fprintln(w, "|===")
+		_, _ = fmt.Fprintln(w)
 	}
 
 	// Resources.
 	if len(model.Resources) > 0 {
-		fmt.Fprintf(w, "== Resource Graph\n\n")
-		fmt.Fprintln(w, "[cols=\"1,1,1,1,2\", options=\"header\"]")
-		fmt.Fprintln(w, "|===")
-		fmt.Fprintln(w, "| ID | Kind | API Version | Depends On | Ready When")
+		_, _ = fmt.Fprintf(w, "== Resource Graph\n\n")
+		_, _ = fmt.Fprintln(w, "[cols=\"1,1,1,1,2\", options=\"header\"]")
+		_, _ = fmt.Fprintln(w, "|===")
+		_, _ = fmt.Fprintln(w, "| ID | Kind | API Version | Depends On | Ready When")
 
 		for _, r := range model.Resources {
 			deps := "-"
@@ -301,33 +306,33 @@ func (f *AsciiDocFormatter) Format(w io.Writer, model *DocModel) error {
 				ready = strings.Join(r.ReadyWhen, "; ")
 			}
 
-			fmt.Fprintf(w, "\n| %s\n| %s\n| %s\n| %s\n| %s\n", r.ID, r.Kind, r.APIVersion, deps, ready)
+			_, _ = fmt.Fprintf(w, "\n| %s\n| %s\n| %s\n| %s\n| %s\n", r.ID, r.Kind, r.APIVersion, deps, ready)
 		}
 
-		fmt.Fprintln(w, "|===")
-		fmt.Fprintln(w)
+		_, _ = fmt.Fprintln(w, "|===")
+		_, _ = fmt.Fprintln(w)
 	}
 
 	// Example YAML.
 	if model.IncludeExamples {
 		example := GenerateExampleYAML(model)
-		fmt.Fprintf(w, "== Example\n\n[source,yaml]\n----\n%s----\n", example)
+		_, _ = fmt.Fprintf(w, "== Example\n\n[source,yaml]\n----\n%s----\n", example)
 	}
 
 	return nil
 }
 
-func writeAsciiDocFieldRows(w io.Writer, fields []FieldInfo) {
+func writeASCIIDocFieldRows(w io.Writer, fields []FieldInfo) {
 	for _, f := range fields {
 		def := f.Default
 		if def == "" {
 			def = "-"
 		}
 
-		fmt.Fprintf(w, "\n| `%s`\n| `%s`\n| %s\n| `%s`\n", f.Name, f.Type, def, f.Path)
+		_, _ = fmt.Fprintf(w, "\n| `%s`\n| `%s`\n| %s\n| `%s`\n", f.Name, f.Type, def, f.Path)
 
 		if len(f.Children) > 0 {
-			writeAsciiDocFieldRows(w, f.Children)
+			writeASCIIDocFieldRows(w, f.Children)
 		}
 	}
 }

@@ -3,10 +3,11 @@ package transform_test
 import (
 	"testing"
 
-	"github.com/hupe1980/chart2kro/internal/k8s"
-	"github.com/hupe1980/chart2kro/internal/transform"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/hupe1980/chart2kro/internal/k8s"
+	"github.com/hupe1980/chart2kro/internal/transform"
 )
 
 func TestAssignResourceIDs_SingleOfEachKind(t *testing.T) {

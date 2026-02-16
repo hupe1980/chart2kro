@@ -47,7 +47,7 @@ type PolicyMatch struct {
 
 // LoadPolicyFile loads a custom policy file from disk.
 func LoadPolicyFile(path string) (*PolicyFile, error) {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // path is user-provided CLI arg, not attacker-controlled
 	if err != nil {
 		return nil, fmt.Errorf("reading policy file %s: %w", path, err)
 	}

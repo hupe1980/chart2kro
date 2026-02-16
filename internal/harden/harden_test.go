@@ -6,10 +6,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/hupe1980/chart2kro/internal/k8s"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	"github.com/hupe1980/chart2kro/internal/k8s"
 )
 
 func TestParseSecurityLevel(t *testing.T) {
@@ -99,7 +99,7 @@ func TestHarden_PolicyOrdering(t *testing.T) {
 	assert.Equal(t, "rbac-generator", h.policies[4].Name())
 }
 
-func TestHardenResult_AccumulatesChanges(t *testing.T) {
+func TestResult_AccumulatesChanges(t *testing.T) {
 	h := New(Config{
 		SecurityLevel:    SecurityLevelRestricted,
 		ResourceDefaults: DefaultResourceDefaults,

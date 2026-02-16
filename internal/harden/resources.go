@@ -32,7 +32,7 @@ func (p *ResourceRequirementsPolicy) Name() string {
 }
 
 // Apply injects default resource requirements into containers missing them.
-func (p *ResourceRequirementsPolicy) Apply(ctx context.Context, resources []*k8s.Resource, result *HardenResult) error {
+func (p *ResourceRequirementsPolicy) Apply(ctx context.Context, resources []*k8s.Resource, result *Result) error {
 	for _, res := range resources {
 		if !isWorkload(res) {
 			continue
@@ -58,7 +58,7 @@ func (p *ResourceRequirementsPolicy) Apply(ctx context.Context, resources []*k8s
 }
 
 // injectResourceDefaults injects default resources into containers that are missing them.
-func injectResourceDefaults(podSpec map[string]interface{}, key, resID, basePath string, defaults *ResourceDefaultsConfig, result *HardenResult) error {
+func injectResourceDefaults(podSpec map[string]interface{}, key, resID, basePath string, defaults *ResourceDefaultsConfig, result *Result) error {
 	containers, ok := podSpec[key].([]interface{})
 	if !ok {
 		return nil
@@ -121,7 +121,7 @@ func checkRequiredLimits(container map[string]interface{}, resID, containerPath 
 }
 
 // setResourceIfMissing sets a resource requirement field if not already present.
-func setResourceIfMissing(m map[string]interface{}, key, value, resID, fieldPath string, result *HardenResult) {
+func setResourceIfMissing(m map[string]interface{}, key, value, resID, fieldPath string, result *Result) {
 	if value == "" {
 		return
 	}
@@ -132,7 +132,7 @@ func setResourceIfMissing(m map[string]interface{}, key, value, resID, fieldPath
 
 	m[key] = value
 
-	result.Changes = append(result.Changes, HardenChange{
+	result.Changes = append(result.Changes, Change{
 		ResourceID: resID,
 		FieldPath:  fieldPath,
 		NewValue:   value,

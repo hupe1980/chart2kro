@@ -125,47 +125,47 @@ func extractResources(rgd map[string]interface{}) []interface{} {
 // FormatTable writes the evolution result as a human-readable table.
 func FormatTable(w io.Writer, result *EvolutionResult) {
 	if !result.HasChanges() {
-		fmt.Fprintln(w, "No changes detected.")
+		_, _ = fmt.Fprintln(w, "No changes detected.")
 		return
 	}
 
 	if len(result.SchemaChanges) > 0 {
-		fmt.Fprintln(w, "Schema Changes:")
-		fmt.Fprintln(w, strings.Repeat("-", 60))
+		_, _ = fmt.Fprintln(w, "Schema Changes:")
+		_, _ = fmt.Fprintln(w, strings.Repeat("-", 60))
 
 		for _, c := range result.SchemaChanges {
 			icon := changeIcon(c.Type, c.Breaking)
-			fmt.Fprintf(w, "  %s %-30s %s\n", icon, c.Field, c.Details)
+			_, _ = fmt.Fprintf(w, "  %s %-30s %s\n", icon, c.Field, c.Details)
 
 			if c.Impact != "" {
-				fmt.Fprintf(w, "    Impact: %s\n", c.Impact)
+				_, _ = fmt.Fprintf(w, "    Impact: %s\n", c.Impact)
 			}
 		}
 
-		fmt.Fprintln(w)
+		_, _ = fmt.Fprintln(w)
 	}
 
 	if len(result.ResourceChanges) > 0 {
-		fmt.Fprintln(w, "Resource Changes:")
-		fmt.Fprintln(w, strings.Repeat("-", 60))
+		_, _ = fmt.Fprintln(w, "Resource Changes:")
+		_, _ = fmt.Fprintln(w, strings.Repeat("-", 60))
 
 		for _, c := range result.ResourceChanges {
 			icon := changeIcon(c.Type, c.Breaking)
 			ref := formatResourceRef(c.ID, c.Kind)
-			fmt.Fprintf(w, "  %s %-30s %s\n", icon, ref, c.Details)
+			_, _ = fmt.Fprintf(w, "  %s %-30s %s\n", icon, ref, c.Details)
 		}
 
-		fmt.Fprintln(w)
+		_, _ = fmt.Fprintln(w)
 	}
 
 	// Summary.
 	breaking := result.BreakingCount()
 	nonBreaking := result.NonBreakingCount()
 
-	fmt.Fprintf(w, "Breaking changes: %d, Non-breaking changes: %d\n", breaking, nonBreaking)
+	_, _ = fmt.Fprintf(w, "Breaking changes: %d, Non-breaking changes: %d\n", breaking, nonBreaking)
 
 	if breaking > 0 {
-		fmt.Fprintln(w, "\nWARNING: Breaking changes detected! Review carefully before upgrading.")
+		_, _ = fmt.Fprintln(w, "\nWARNING: Breaking changes detected! Review carefully before upgrading.")
 	}
 }
 

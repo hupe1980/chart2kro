@@ -6,10 +6,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/hupe1980/chart2kro/internal/k8s"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	"github.com/hupe1980/chart2kro/internal/k8s"
 )
 
 func TestNetworkPolicyGenerator_GeneratesPerWorkload(t *testing.T) {
@@ -24,7 +24,7 @@ func TestNetworkPolicyGenerator_GeneratesPerWorkload(t *testing.T) {
 	})
 
 	gen := NewNetworkPolicyGenerator(nil)
-	result := &HardenResult{Resources: []*k8s.Resource{deploy, svc}}
+	result := &Result{Resources: []*k8s.Resource{deploy, svc}}
 
 	err := gen.Apply(context.Background(), result.Resources, result)
 	require.NoError(t, err)
@@ -46,7 +46,7 @@ func TestNetworkPolicyGenerator_DenyAllDefault(t *testing.T) {
 	deploy := makeDeploymentWithSelector("app", map[string]interface{}{"app": "test"}, []interface{}{makeContainer("web", "nginx:1.25")})
 
 	gen := NewNetworkPolicyGenerator(nil)
-	result := &HardenResult{Resources: []*k8s.Resource{deploy}}
+	result := &Result{Resources: []*k8s.Resource{deploy}}
 
 	err := gen.Apply(context.Background(), result.Resources, result)
 	require.NoError(t, err)
@@ -72,7 +72,7 @@ func TestNetworkPolicyGenerator_DNSEgressAllowed(t *testing.T) {
 	deploy := makeDeploymentWithSelector("app", map[string]interface{}{"app": "test"}, []interface{}{makeContainer("web", "nginx:1.25")})
 
 	gen := NewNetworkPolicyGenerator(nil)
-	result := &HardenResult{Resources: []*k8s.Resource{deploy}}
+	result := &Result{Resources: []*k8s.Resource{deploy}}
 
 	err := gen.Apply(context.Background(), result.Resources, result)
 	require.NoError(t, err)
@@ -109,7 +109,7 @@ func TestNetworkPolicyGenerator_ServiceMatchingIngress(t *testing.T) {
 	})
 
 	gen := NewNetworkPolicyGenerator(nil)
-	result := &HardenResult{Resources: []*k8s.Resource{deploy, svc}}
+	result := &Result{Resources: []*k8s.Resource{deploy, svc}}
 
 	err := gen.Apply(context.Background(), result.Resources, result)
 	require.NoError(t, err)
@@ -142,7 +142,7 @@ func TestNetworkPolicyGenerator_NoServiceNoIngress(t *testing.T) {
 	deploy := makeDeploymentWithSelector("app", map[string]interface{}{"app": "test"}, []interface{}{makeContainer("web", "nginx:1.25")})
 
 	gen := NewNetworkPolicyGenerator(nil)
-	result := &HardenResult{Resources: []*k8s.Resource{deploy}}
+	result := &Result{Resources: []*k8s.Resource{deploy}}
 
 	err := gen.Apply(context.Background(), result.Resources, result)
 	require.NoError(t, err)
@@ -171,7 +171,7 @@ func TestNetworkPolicyGenerator_ServiceWithoutPorts(t *testing.T) {
 	svc := makeService("web-svc", labels, nil)
 
 	gen := NewNetworkPolicyGenerator(nil)
-	result := &HardenResult{Resources: []*k8s.Resource{deploy, svc}}
+	result := &Result{Resources: []*k8s.Resource{deploy, svc}}
 
 	err := gen.Apply(context.Background(), result.Resources, result)
 	require.NoError(t, err)
@@ -222,7 +222,7 @@ func TestNetworkPolicyGenerator_MultipleWorkloads(t *testing.T) {
 	deploy2 := makeDeploymentWithSelector("api", map[string]interface{}{"app": "api"}, []interface{}{makeContainer("api", "node:18")})
 
 	gen := NewNetworkPolicyGenerator(nil)
-	result := &HardenResult{Resources: []*k8s.Resource{deploy1, deploy2}}
+	result := &Result{Resources: []*k8s.Resource{deploy1, deploy2}}
 
 	err := gen.Apply(context.Background(), result.Resources, result)
 	require.NoError(t, err)

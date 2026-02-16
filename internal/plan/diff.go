@@ -95,7 +95,7 @@ func extractHunks(unified string) []string {
 // WriteDiff writes a formatted diff to the given writer with optional ANSI colors.
 func WriteDiff(w io.Writer, result *DiffResult, color bool) {
 	if !result.HasDifferences {
-		fmt.Fprintln(w, "No differences found.")
+		_, _ = fmt.Fprintln(w, "No differences found.")
 		return
 	}
 
@@ -104,7 +104,7 @@ func WriteDiff(w io.Writer, result *DiffResult, color bool) {
 		if color {
 			writeColorLine(w, line)
 		} else {
-			fmt.Fprintln(w, line)
+			_, _ = fmt.Fprintln(w, line)
 		}
 	}
 }
@@ -121,17 +121,17 @@ func writeColorLine(w io.Writer, line string) {
 
 	switch {
 	case strings.HasPrefix(line, "---"):
-		fmt.Fprintf(w, "%s%s%s\n", bold, line, reset)
+		_, _ = fmt.Fprintf(w, "%s%s%s\n", bold, line, reset)
 	case strings.HasPrefix(line, "+++"):
-		fmt.Fprintf(w, "%s%s%s\n", bold, line, reset)
+		_, _ = fmt.Fprintf(w, "%s%s%s\n", bold, line, reset)
 	case strings.HasPrefix(line, "@@"):
-		fmt.Fprintf(w, "%s%s%s\n", cyan, line, reset)
+		_, _ = fmt.Fprintf(w, "%s%s%s\n", cyan, line, reset)
 	case strings.HasPrefix(line, "-"):
-		fmt.Fprintf(w, "%s%s%s\n", red, line, reset)
+		_, _ = fmt.Fprintf(w, "%s%s%s\n", red, line, reset)
 	case strings.HasPrefix(line, "+"):
-		fmt.Fprintf(w, "%s%s%s\n", green, line, reset)
+		_, _ = fmt.Fprintf(w, "%s%s%s\n", green, line, reset)
 	default:
-		fmt.Fprintln(w, line)
+		_, _ = fmt.Fprintln(w, line)
 	}
 }
 

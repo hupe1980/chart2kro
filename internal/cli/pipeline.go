@@ -30,7 +30,7 @@ type pipelineResult struct {
 	RGDMap       map[string]interface{}
 	Result       *transform.Result
 	Meta         *chartmeta.ChartMeta
-	HardenResult *harden.HardenResult
+	HardenResult *harden.Result
 	HookResult   *hooks.FilterResult
 	FilterResult *filter.Result
 }
@@ -316,7 +316,7 @@ func runPipeline(ctx context.Context, ref string, opts *convertOptions) (*pipeli
 	}
 
 	// 9b. Security hardening (optional).
-	var hardenResult *harden.HardenResult
+	var hardenResult *harden.Result
 
 	if opts.harden {
 		secLevel, levelErr := harden.ParseSecurityLevel(opts.securityLevel)

@@ -222,9 +222,9 @@ func NewContextWithConfigFile(ctx context.Context, path string) context.Context 
 	return context.WithValue(ctx, ctxFileKey{}, path)
 }
 
-// ConfigFileFromContext extracts the config file path from ctx.
+// FileFromContext extracts the config file path from ctx.
 // Returns empty string if no config file was resolved.
-func ConfigFileFromContext(ctx context.Context) string {
+func FileFromContext(ctx context.Context) string {
 	if p, ok := ctx.Value(ctxFileKey{}).(string); ok {
 		return p
 	}

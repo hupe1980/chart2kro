@@ -9,6 +9,7 @@ import (
 // ChangeType represents the type of change detected.
 type ChangeType string
 
+// Change type constants.
 const (
 	ChangeAdded    ChangeType = "added"
 	ChangeRemoved  ChangeType = "removed"

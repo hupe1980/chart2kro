@@ -3,9 +3,10 @@ package docs_test
 import (
 	"testing"
 
-	"github.com/hupe1980/chart2kro/internal/docs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/hupe1980/chart2kro/internal/docs"
 )
 
 func sampleRGDMap() map[string]interface{} {

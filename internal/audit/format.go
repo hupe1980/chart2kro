@@ -33,14 +33,15 @@ func NewFormatter(format string) (Formatter, error) {
 // TableFormatter writes findings as a human-readable table.
 type TableFormatter struct{}
 
+// Format writes the result as a human-readable table.
 func (f *TableFormatter) Format(w io.Writer, result *Result) error {
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 
-	fmt.Fprintln(tw, "SEVERITY\tRULE\tRESOURCE\tMESSAGE")
-	fmt.Fprintln(tw, "--------\t----\t--------\t-------")
+	_, _ = fmt.Fprintln(tw, "SEVERITY\tRULE\tRESOURCE\tMESSAGE")
+	_, _ = fmt.Fprintln(tw, "--------\t----\t--------\t-------")
 
 	for _, finding := range result.Findings {
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n",
+		_, _ = fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n",
 			strings.ToUpper(finding.Severity.String()),
 			finding.RuleID,
 			finding.ResourceID,
@@ -52,8 +53,8 @@ func (f *TableFormatter) Format(w io.Writer, result *Result) error {
 		return err
 	}
 
-	fmt.Fprintln(w)
-	fmt.Fprintf(w, "Findings: %d total", len(result.Findings))
+	_, _ = fmt.Fprintln(w)
+	_, _ = fmt.Fprintf(w, "Findings: %d total", len(result.Findings))
 
 	parts := []string{}
 	for _, sev := range []Severity{SeverityCritical, SeverityHigh, SeverityMedium, SeverityLow, SeverityInfo} {
@@ -63,10 +64,10 @@ func (f *TableFormatter) Format(w io.Writer, result *Result) error {
 	}
 
 	if len(parts) > 0 {
-		fmt.Fprintf(w, " (%s)", strings.Join(parts, ", "))
+		_, _ = fmt.Fprintf(w, " (%s)", strings.Join(parts, ", "))
 	}
 
-	fmt.Fprintln(w)
+	_, _ = fmt.Fprintln(w)
 
 	return nil
 }
@@ -76,6 +77,7 @@ func (f *TableFormatter) Format(w io.Writer, result *Result) error {
 // JSONFormatter writes findings as JSON.
 type JSONFormatter struct{}
 
+// Format writes the result as JSON.
 func (f *JSONFormatter) Format(w io.Writer, result *Result) error {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
@@ -124,6 +126,7 @@ func (f *JSONFormatter) Format(w io.Writer, result *Result) error {
 // SARIFFormatter writes findings in SARIF v2.1.0 format.
 type SARIFFormatter struct{}
 
+// Format writes the result in SARIF v2.1.0 format.
 func (f *SARIFFormatter) Format(w io.Writer, result *Result) error {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")

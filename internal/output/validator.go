@@ -568,10 +568,10 @@ func FormatValidationResult(result *ValidationResult) string {
 	warnings := result.Warnings()
 
 	if len(errors) > 0 {
-		fmt.Fprintf(&sb, "Errors (%d):\n", len(errors))
+		_, _ = fmt.Fprintf(&sb, "Errors (%d):\n", len(errors))
 
 		for _, f := range errors {
-			fmt.Fprintf(&sb, "  - %s: %s\n", f.Field, f.Message)
+			_, _ = fmt.Fprintf(&sb, "  - %s: %s\n", f.Field, f.Message)
 		}
 	}
 
@@ -580,10 +580,10 @@ func FormatValidationResult(result *ValidationResult) string {
 			sb.WriteString("\n")
 		}
 
-		fmt.Fprintf(&sb, "Warnings (%d):\n", len(warnings))
+		_, _ = fmt.Fprintf(&sb, "Warnings (%d):\n", len(warnings))
 
 		for _, f := range warnings {
-			fmt.Fprintf(&sb, "  - %s: %s\n", f.Field, f.Message)
+			_, _ = fmt.Fprintf(&sb, "  - %s: %s\n", f.Field, f.Message)
 		}
 	}
 

@@ -43,8 +43,8 @@ func ParseSecurityLevel(s string) (SecurityLevel, error) {
 	}
 }
 
-// HardenChange records a single modification made by the hardening engine.
-type HardenChange struct {
+// Change records a single modification made by the hardening engine.
+type Change struct {
 	ResourceID string `json:"resourceId"`
 	FieldPath  string `json:"fieldPath"`
 	OldValue   string `json:"oldValue,omitempty"`
@@ -52,13 +52,13 @@ type HardenChange struct {
 	Reason     string `json:"reason"`
 }
 
-// HardenResult holds the full output of the hardening pipeline.
-type HardenResult struct {
+// Result holds the full output of the hardening pipeline.
+type Result struct {
 	// Resources is the modified resource list (includes any generated resources).
 	Resources []*k8s.Resource
 
 	// Changes is the list of modifications made.
-	Changes []HardenChange
+	Changes []Change
 
 	// Warnings are non-fatal issues (e.g., conflicts with existing settings).
 	Warnings []string
@@ -130,7 +130,7 @@ type Policy interface {
 	Name() string
 
 	// Apply applies this policy to the given resources, returning changes and warnings.
-	Apply(ctx context.Context, resources []*k8s.Resource, result *HardenResult) error
+	Apply(ctx context.Context, resources []*k8s.Resource, result *Result) error
 }
 
 // Hardener orchestrates all hardening policies.
@@ -181,8 +181,8 @@ func New(cfg Config) *Hardener {
 }
 
 // Harden applies all configured policies to the resources.
-func (h *Hardener) Harden(ctx context.Context, resources []*k8s.Resource) (*HardenResult, error) {
-	result := &HardenResult{
+func (h *Hardener) Harden(ctx context.Context, resources []*k8s.Resource) (*Result, error) {
+	result := &Result{
 		Resources: resources,
 	}
 

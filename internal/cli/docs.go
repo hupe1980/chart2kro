@@ -29,7 +29,7 @@ Outputs documentation describing the custom resource API: spec fields with
 types and defaults, status fields, managed resources, and optionally an
 example YAML instance.
 
-Supports markdown, HTML, and AsciiDoc output formats.`,
+Supports markdown, HTML, and ASCIIDoc output formats.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runDocs(cmd, args[0], opts)

@@ -7,9 +7,10 @@ package transformer
 import (
 	"context"
 
+	"k8s.io/apimachinery/pkg/runtime/schema"
+
 	"github.com/hupe1980/chart2kro/internal/k8s"
 	"github.com/hupe1980/chart2kro/internal/transform"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 // TransformInput holds all context needed for resource transformation.

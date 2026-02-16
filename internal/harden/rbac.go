@@ -65,7 +65,7 @@ func (g *RBACGenerator) Name() string {
 }
 
 // Apply generates RBAC resources for each workload.
-func (g *RBACGenerator) Apply(ctx context.Context, resources []*k8s.Resource, result *HardenResult) error {
+func (g *RBACGenerator) Apply(ctx context.Context, resources []*k8s.Resource, result *Result) error {
 	// Build a per-workload affinity map: for each workload, determine which
 	// resource kinds it actually references (via env var secretRef/configMapRef,
 	// volume mounts, etc.). This implements least-privilege RBAC.
@@ -84,7 +84,7 @@ func (g *RBACGenerator) Apply(ctx context.Context, resources []*k8s.Resource, re
 		// 1. ServiceAccount.
 		sa := createServiceAccount(saName)
 		result.Resources = append(result.Resources, sa)
-		result.Changes = append(result.Changes, HardenChange{
+		result.Changes = append(result.Changes, Change{
 			ResourceID: sa.QualifiedName(),
 			FieldPath:  "",
 			NewValue:   "generated",
@@ -100,7 +100,7 @@ func (g *RBACGenerator) Apply(ctx context.Context, resources []*k8s.Resource, re
 
 		role := createRole(roleName, kindSet)
 		result.Resources = append(result.Resources, role)
-		result.Changes = append(result.Changes, HardenChange{
+		result.Changes = append(result.Changes, Change{
 			ResourceID: role.QualifiedName(),
 			FieldPath:  "",
 			NewValue:   "generated",
@@ -110,7 +110,7 @@ func (g *RBACGenerator) Apply(ctx context.Context, resources []*k8s.Resource, re
 		// 3. RoleBinding.
 		binding := createRoleBinding(bindingName, saName, roleName)
 		result.Resources = append(result.Resources, binding)
-		result.Changes = append(result.Changes, HardenChange{
+		result.Changes = append(result.Changes, Change{
 			ResourceID: binding.QualifiedName(),
 			FieldPath:  "",
 			NewValue:   "generated",
@@ -230,7 +230,7 @@ func createRoleBinding(name, saName, roleName string) *k8s.Resource {
 }
 
 // setServiceAccountName sets spec.template.spec.serviceAccountName on a workload.
-func setServiceAccountName(res *k8s.Resource, saName string, result *HardenResult) {
+func setServiceAccountName(res *k8s.Resource, saName string, result *Result) {
 	podSpec := getPodSpec(res)
 	if podSpec == nil {
 		return
@@ -242,7 +242,7 @@ func setServiceAccountName(res *k8s.Resource, saName string, result *HardenResul
 
 	podSpec["serviceAccountName"] = saName
 
-	result.Changes = append(result.Changes, HardenChange{
+	result.Changes = append(result.Changes, Change{
 		ResourceID: res.QualifiedName(),
 		FieldPath:  "spec.template.spec.serviceAccountName",
 		NewValue:   saName,

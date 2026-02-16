@@ -50,7 +50,7 @@ func TestDigestResolverPolicy_ResolvesTagToDigest(t *testing.T) {
 	})
 
 	policy := NewDigestResolverPolicy(client)
-	result := &HardenResult{Resources: []*k8s.Resource{deploy}}
+	result := &Result{Resources: []*k8s.Resource{deploy}}
 
 	err := policy.Apply(context.Background(), result.Resources, result)
 	require.NoError(t, err)
@@ -78,7 +78,7 @@ func TestDigestResolverPolicy_SkipsAlreadyPinned(t *testing.T) {
 	})
 
 	policy := NewDigestResolverPolicy(client)
-	result := &HardenResult{Resources: []*k8s.Resource{deploy}}
+	result := &Result{Resources: []*k8s.Resource{deploy}}
 
 	err := policy.Apply(context.Background(), result.Resources, result)
 	require.NoError(t, err)
@@ -93,7 +93,7 @@ func TestDigestResolverPolicy_SkipsEmptyImage(t *testing.T) {
 	})
 
 	policy := NewDigestResolverPolicy(client)
-	result := &HardenResult{Resources: []*k8s.Resource{deploy}}
+	result := &Result{Resources: []*k8s.Resource{deploy}}
 
 	err := policy.Apply(context.Background(), result.Resources, result)
 	require.NoError(t, err)
@@ -124,7 +124,7 @@ func TestDigestResolverPolicy_MultipleContainers(t *testing.T) {
 	}
 
 	policy := NewDigestResolverPolicy(client)
-	result := &HardenResult{Resources: []*k8s.Resource{deploy}}
+	result := &Result{Resources: []*k8s.Resource{deploy}}
 
 	err := policy.Apply(context.Background(), result.Resources, result)
 	require.NoError(t, err)
@@ -149,7 +149,7 @@ func TestDigestResolverPolicy_RegistryError(t *testing.T) {
 	})
 
 	policy := NewDigestResolverPolicy(client)
-	result := &HardenResult{Resources: []*k8s.Resource{deploy}}
+	result := &Result{Resources: []*k8s.Resource{deploy}}
 
 	err := policy.Apply(context.Background(), result.Resources, result)
 	require.Error(t, err)
@@ -173,7 +173,7 @@ func TestDigestResolverPolicy_CancelledContext(t *testing.T) {
 	// The mock client doesn't check context, but the HTTP client would.
 	// This tests that the policy passes context through.
 	policy := NewDigestResolverPolicy(client)
-	result := &HardenResult{Resources: []*k8s.Resource{deploy}}
+	result := &Result{Resources: []*k8s.Resource{deploy}}
 
 	// With mock client, this succeeds even with cancelled context.
 	// But at least we verify no panics and proper pass-through.
@@ -187,7 +187,7 @@ func TestDigestResolverPolicy_SkipsNonWorkload(t *testing.T) {
 	svc := makeService("svc", nil, nil)
 
 	policy := NewDigestResolverPolicy(client)
-	result := &HardenResult{Resources: []*k8s.Resource{svc}}
+	result := &Result{Resources: []*k8s.Resource{svc}}
 
 	err := policy.Apply(context.Background(), result.Resources, result)
 	require.NoError(t, err)
@@ -206,7 +206,7 @@ func TestDigestResolverPolicy_RegistryImage(t *testing.T) {
 	})
 
 	policy := NewDigestResolverPolicy(client)
-	result := &HardenResult{Resources: []*k8s.Resource{deploy}}
+	result := &Result{Resources: []*k8s.Resource{deploy}}
 
 	err := policy.Apply(context.Background(), result.Resources, result)
 	require.NoError(t, err)

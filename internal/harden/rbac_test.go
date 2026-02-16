@@ -6,17 +6,17 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/hupe1980/chart2kro/internal/k8s"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	"github.com/hupe1980/chart2kro/internal/k8s"
 )
 
 func TestRBACGenerator_GeneratesResources(t *testing.T) {
 	deploy := makeDeployment("web", []interface{}{makeContainer("web", "nginx:1.25")})
 
 	gen := NewRBACGenerator(nil)
-	result := &HardenResult{Resources: []*k8s.Resource{deploy}}
+	result := &Result{Resources: []*k8s.Resource{deploy}}
 
 	err := gen.Apply(context.Background(), result.Resources, result)
 	require.NoError(t, err)
@@ -47,7 +47,7 @@ func TestRBACGenerator_SetsServiceAccountName(t *testing.T) {
 	deploy := makeDeployment("web", []interface{}{makeContainer("web", "nginx:1.25")})
 
 	gen := NewRBACGenerator(nil)
-	result := &HardenResult{Resources: []*k8s.Resource{deploy}}
+	result := &Result{Resources: []*k8s.Resource{deploy}}
 
 	err := gen.Apply(context.Background(), result.Resources, result)
 	require.NoError(t, err)
@@ -69,7 +69,7 @@ func TestRBACGenerator_PreservesExistingServiceAccount(t *testing.T) {
 	}
 
 	gen := NewRBACGenerator(nil)
-	result := &HardenResult{Resources: []*k8s.Resource{deploy}}
+	result := &Result{Resources: []*k8s.Resource{deploy}}
 
 	err := gen.Apply(context.Background(), result.Resources, result)
 	require.NoError(t, err)
@@ -131,7 +131,7 @@ func TestRBACGenerator_RolePermissions(t *testing.T) {
 	}
 
 	gen := NewRBACGenerator(nil)
-	result := &HardenResult{Resources: []*k8s.Resource{deploy, configMap, secret}}
+	result := &Result{Resources: []*k8s.Resource{deploy, configMap, secret}}
 
 	err := gen.Apply(context.Background(), result.Resources, result)
 	require.NoError(t, err)
@@ -222,7 +222,7 @@ func TestRBACGenerator_LeastPrivilegeIsolation(t *testing.T) {
 	}
 
 	gen := NewRBACGenerator(nil)
-	result := &HardenResult{Resources: []*k8s.Resource{deployA, deployB}}
+	result := &Result{Resources: []*k8s.Resource{deployA, deployB}}
 
 	err := gen.Apply(context.Background(), result.Resources, result)
 	require.NoError(t, err)
@@ -268,7 +268,7 @@ func TestRBACGenerator_RoleBindingStructure(t *testing.T) {
 	deploy := makeDeployment("web", []interface{}{makeContainer("web", "nginx:1.25")})
 
 	gen := NewRBACGenerator(nil)
-	result := &HardenResult{Resources: []*k8s.Resource{deploy}}
+	result := &Result{Resources: []*k8s.Resource{deploy}}
 
 	err := gen.Apply(context.Background(), result.Resources, result)
 	require.NoError(t, err)

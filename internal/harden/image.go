@@ -24,7 +24,7 @@ func (p *ImagePolicy) Name() string {
 }
 
 // Apply checks all container images against the configured policies.
-func (p *ImagePolicy) Apply(ctx context.Context, resources []*k8s.Resource, result *HardenResult) error {
+func (p *ImagePolicy) Apply(ctx context.Context, resources []*k8s.Resource, result *Result) error {
 	for _, res := range resources {
 		if !isWorkload(res) {
 			continue
@@ -44,7 +44,7 @@ func (p *ImagePolicy) Apply(ctx context.Context, resources []*k8s.Resource, resu
 }
 
 // checkContainerImages checks image policies on a container list.
-func checkContainerImages(podSpec map[string]interface{}, key, resID string, cfg *ImagePolicyConfig, result *HardenResult) {
+func checkContainerImages(podSpec map[string]interface{}, key, resID string, cfg *ImagePolicyConfig, result *Result) {
 	containers, ok := podSpec[key].([]interface{})
 	if !ok {
 		return
