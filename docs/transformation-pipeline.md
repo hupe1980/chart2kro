@@ -199,6 +199,16 @@ Generates KRO-compatible CEL expressions for schema references, cross-resource r
 
 **Package:** `internal/transform` (cel.go)
 
+> **Design decision:** chart2kro uses plain string builders — not `cel-go` or `kro/pkg/cel`.
+> KRO's `${…}` template syntax is a layer above standard CEL that `cel-go` cannot parse.
+> `kro/pkg/cel` requires `rest.Config` for server-side evaluation. chart2kro is an offline
+> code generator that produces simple field references and comparisons; adding `cel-go` would
+> bloat the binary by ~8 MB for zero benefit. See [ADR-001](adr/001-no-kro-pkg-dependency.md)
+> for the full rationale.
+>
+> `ValidateExpression()` provides lightweight syntax validation (balanced `${…}` delimiters)
+> without a full CEL parser. Semantic validation is KRO's responsibility at apply time.
+
 | Category | Pattern | Example |
 |----------|---------|---------|
 | Schema reference | `${schema.spec.<path>}` | `${schema.spec.replicas}` |
@@ -365,7 +375,7 @@ The `internal/k8s` package provides utilities to classify resources:
 
 | Function | Matching Kinds |
 |----------|---------------|
-| `IsWorkload(gvk)` | Deployment, StatefulSet, DaemonSet, Job, CronJob |
+| `IsWorkload(gvk)` | Deployment, StatefulSet, DaemonSet, ReplicaSet, Job, CronJob |
 | `IsService(gvk)` | Service |
 | `IsConfig(gvk)` | ConfigMap, Secret |
 | `IsStorage(gvk)` | PVC, PV |
@@ -373,6 +383,17 @@ The `internal/k8s` package provides utilities to classify resources:
 | `IsCRD(gvk)` | CustomResourceDefinition |
 | `IsRBAC(gvk)` | Role, ClusterRole, RoleBinding, ClusterRoleBinding |
 | `IsServiceAccount(gvk)` | ServiceAccount |
+
+Individual kind classifiers (used by CEL expression builders):
+
+| Function | Matching Kind |
+|----------|--------------|
+| `IsDeployment(gvk)` | Deployment (apps group) |
+| `IsStatefulSet(gvk)` | StatefulSet (apps group) |
+| `IsDaemonSet(gvk)` | DaemonSet (apps group) |
+| `IsJob(gvk)` | Job (batch group) |
+| `IsPVC(gvk)` | PersistentVolumeClaim |
+| `APIVersion(gvk)` | Converts GVK to apiVersion string (e.g., `apps/v1`, `v1`) |
 
 ## Output Stage (BACKLOG 4)
 

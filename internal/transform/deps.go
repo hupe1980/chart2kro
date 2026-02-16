@@ -78,6 +78,16 @@ func (g *DependencyGraph) Resource(id string) *k8s.Resource {
 	return g.nodes[id]
 }
 
+// EdgeCount returns the total number of dependency edges in the graph.
+func (g *DependencyGraph) EdgeCount() int {
+	count := 0
+	for _, targets := range g.edges {
+		count += len(targets)
+	}
+
+	return count
+}
+
 // TopologicalSort returns the nodes in topological order using Kahn's algorithm.
 // Ties are broken alphabetically for deterministic output.
 // Returns an error if the graph contains a cycle.

@@ -46,6 +46,18 @@ func TestMultiLoader_Load_UnknownType(t *testing.T) {
 	assert.Contains(t, err.Error(), "cannot determine")
 }
 
+func TestMultiLoader_Load_PlainNameWithRepoURL(t *testing.T) {
+	srv := newTestRepoServer(t, "plain-chart", "1.0.0")
+
+	ml := NewMultiLoader()
+	ch, err := ml.Load(context.Background(), "plain-chart", LoadOptions{
+		RepoURL: srv.URL,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "plain-chart", ch.Metadata.Name)
+	assert.Equal(t, "1.0.0", ch.Metadata.Version)
+}
+
 func TestMultiLoader_Load_Empty(t *testing.T) {
 	ml := NewMultiLoader()
 	_, err := ml.Load(context.Background(), "", LoadOptions{})

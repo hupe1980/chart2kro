@@ -139,7 +139,7 @@ func resourceMatchKey(r *k8s.Resource) string {
 		return ""
 	}
 
-	apiVersion := GVKToAPIVersion(r.GVK)
+	apiVersion := k8s.APIVersion(r.GVK)
 
 	return apiVersion + "/" + r.GVK.Kind + "/" + r.Name
 }

@@ -8,15 +8,15 @@ import (
 )
 
 // ---------------------------------------------------------------------------
-// Stub subcommands – all should return "not yet implemented"
+// Subcommand error handling
 // ---------------------------------------------------------------------------
 
-func TestStub_Validate_NoArgs(t *testing.T) {
+func TestValidate_NoArgs(t *testing.T) {
 	_, _, err := executeCommand("validate")
 	require.Error(t, err)
 }
 
-func TestStub_Export_NoArgs(t *testing.T) {
+func TestExport_NoArgs(t *testing.T) {
 	_, _, err := executeCommand("export")
 	require.Error(t, err)
 }
@@ -33,17 +33,15 @@ func TestDiff_MissingExisting(t *testing.T) {
 	assert.Contains(t, err.Error(), "--existing flag is required")
 }
 
-func TestStub_Audit(t *testing.T) {
+func TestAudit_InvalidChart(t *testing.T) {
 	_, _, err := executeCommand("audit", "my-chart")
 	require.Error(t, err)
-	// Audit is now implemented; error is about loading chart, not about stubs.
 	assert.NotContains(t, err.Error(), "not yet implemented")
 }
 
-func TestStub_Docs(t *testing.T) {
+func TestDocs_InvalidFile(t *testing.T) {
 	_, _, err := executeCommand("docs", "my-chart")
 	require.Error(t, err)
-	// Docs is now implemented; error is about reading the file, not about stubs.
 	assert.NotContains(t, err.Error(), "not yet implemented")
 }
 
@@ -59,31 +57,31 @@ func TestWatch_RequiresOutput(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// Stub help text – each stub should have a description
+// Help text
 // ---------------------------------------------------------------------------
 
-func TestStub_ConvertHelp(t *testing.T) {
+func TestConvert_Help(t *testing.T) {
 	stdout, _, err := executeCommand("convert", "--help")
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "Convert a Helm chart")
 }
 
-func TestStub_InspectHelp(t *testing.T) {
+func TestInspect_Help(t *testing.T) {
 	stdout, _, err := executeCommand("inspect", "--help")
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "Inspect a Helm chart")
 }
 
 // ---------------------------------------------------------------------------
-// Stubs require the correct number of arguments
+// Argument validation
 // ---------------------------------------------------------------------------
 
-func TestStub_ConvertNoArgs(t *testing.T) {
+func TestConvert_RequiresChartArg(t *testing.T) {
 	_, _, err := executeCommand("convert")
 	require.Error(t, err)
 }
 
-func TestStub_InspectExtraArgs(t *testing.T) {
+func TestInspect_ExtraArgs(t *testing.T) {
 	_, _, err := executeCommand("inspect", "a", "b")
 	require.Error(t, err)
 }

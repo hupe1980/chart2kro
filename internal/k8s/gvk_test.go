@@ -18,6 +18,7 @@ func TestIsWorkload(t *testing.T) {
 		{"Deployment", schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "Deployment"}, true},
 		{"StatefulSet", schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "StatefulSet"}, true},
 		{"DaemonSet", schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "DaemonSet"}, true},
+		{"ReplicaSet", schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "ReplicaSet"}, true},
 		{"Job", schema.GroupVersionKind{Group: "batch", Version: "v1", Kind: "Job"}, true},
 		{"CronJob", schema.GroupVersionKind{Group: "batch", Version: "v1", Kind: "CronJob"}, true},
 		{"Service is not workload", schema.GroupVersionKind{Group: "", Version: "v1", Kind: "Service"}, false},
@@ -77,4 +78,54 @@ func TestIsServiceAccount(t *testing.T) {
 	assert.True(t, k8s.IsServiceAccount(schema.GroupVersionKind{Group: "", Version: "v1", Kind: "ServiceAccount"}))
 	assert.True(t, k8s.IsServiceAccount(schema.GroupVersionKind{Group: "core", Version: "v1", Kind: "ServiceAccount"}))
 	assert.False(t, k8s.IsServiceAccount(schema.GroupVersionKind{Group: "", Version: "v1", Kind: "Service"}))
+}
+
+func TestIsDeployment(t *testing.T) {
+	assert.True(t, k8s.IsDeployment(schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "Deployment"}))
+	assert.False(t, k8s.IsDeployment(schema.GroupVersionKind{Group: "", Version: "v1", Kind: "Deployment"}))
+	assert.False(t, k8s.IsDeployment(schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "StatefulSet"}))
+}
+
+func TestIsStatefulSet(t *testing.T) {
+	assert.True(t, k8s.IsStatefulSet(schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "StatefulSet"}))
+	assert.False(t, k8s.IsStatefulSet(schema.GroupVersionKind{Group: "", Version: "v1", Kind: "StatefulSet"}))
+	assert.False(t, k8s.IsStatefulSet(schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "Deployment"}))
+}
+
+func TestIsDaemonSet(t *testing.T) {
+	assert.True(t, k8s.IsDaemonSet(schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "DaemonSet"}))
+	assert.False(t, k8s.IsDaemonSet(schema.GroupVersionKind{Group: "", Version: "v1", Kind: "DaemonSet"}))
+	assert.False(t, k8s.IsDaemonSet(schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "Deployment"}))
+}
+
+func TestIsJob(t *testing.T) {
+	assert.True(t, k8s.IsJob(schema.GroupVersionKind{Group: "batch", Version: "v1", Kind: "Job"}))
+	assert.False(t, k8s.IsJob(schema.GroupVersionKind{Group: "", Version: "v1", Kind: "Job"}))
+	assert.False(t, k8s.IsJob(schema.GroupVersionKind{Group: "batch", Version: "v1", Kind: "CronJob"}))
+}
+
+func TestIsPVC(t *testing.T) {
+	assert.True(t, k8s.IsPVC(schema.GroupVersionKind{Group: "", Version: "v1", Kind: "PersistentVolumeClaim"}))
+	assert.True(t, k8s.IsPVC(schema.GroupVersionKind{Group: "core", Version: "v1", Kind: "PersistentVolumeClaim"}))
+	assert.False(t, k8s.IsPVC(schema.GroupVersionKind{Group: "storage.k8s.io", Version: "v1", Kind: "PersistentVolumeClaim"}))
+	assert.False(t, k8s.IsPVC(schema.GroupVersionKind{Group: "", Version: "v1", Kind: "PersistentVolume"}))
+}
+
+func TestAPIVersion(t *testing.T) {
+	tests := []struct {
+		name     string
+		gvk      schema.GroupVersionKind
+		expected string
+	}{
+		{"core", schema.GroupVersionKind{Version: "v1", Kind: "Service"}, "v1"},
+		{"apps", schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "Deployment"}, "apps/v1"},
+		{"networking", schema.GroupVersionKind{Group: "networking.k8s.io", Version: "v1", Kind: "Ingress"}, "networking.k8s.io/v1"},
+		{"batch", schema.GroupVersionKind{Group: "batch", Version: "v1", Kind: "Job"}, "batch/v1"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, k8s.APIVersion(tt.gvk))
+		})
+	}
 }

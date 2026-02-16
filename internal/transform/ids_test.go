@@ -123,15 +123,52 @@ func TestToPascalCase(t *testing.T) {
 }
 
 func TestAssignResourceIDs_CollisionDetection(t *testing.T) {
-	// Two services whose last name segment collides after sanitization.
+	// Two services whose names are identical after prefix stripping — truly identical.
 	resources := []*k8s.Resource{
-		makeResource("Service", "my-web"),
-		makeResource("Service", "your-web"),
+		makeResource("Service", "web"),
+		makeResource("Service", "web"),
 	}
 
 	_, err := transform.AssignResourceIDs(resources, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "collision")
+}
+
+func TestAssignResourceIDs_ProgressiveDisambiguation(t *testing.T) {
+	// Last segment "env" is shared — must use more segments.
+	resources := []*k8s.Resource{
+		makeResource("ConfigMap", "release-dagster-daemon-env"),
+		makeResource("ConfigMap", "release-dagster-shared-env"),
+	}
+	ids, err := transform.AssignResourceIDs(resources, nil)
+	require.NoError(t, err)
+	assert.Equal(t, "configmap-daemon-env", ids[resources[0]])
+	assert.Equal(t, "configmap-shared-env", ids[resources[1]])
+}
+
+func TestAssignResourceIDs_LastSegmentUnique(t *testing.T) {
+	// Last segment is already unique — keep short IDs.
+	resources := []*k8s.Resource{
+		makeResource("Service", "app-main"),
+		makeResource("Service", "app-headless"),
+	}
+	ids, err := transform.AssignResourceIDs(resources, nil)
+	require.NoError(t, err)
+	assert.Equal(t, "service-main", ids[resources[0]])
+	assert.Equal(t, "service-headless", ids[resources[1]])
+}
+
+func TestAssignResourceIDs_PreviousCollisionNowResolved(t *testing.T) {
+	// Two services whose last segment collides → progressively disambiguated.
+	resources := []*k8s.Resource{
+		makeResource("Service", "my-web"),
+		makeResource("Service", "your-web"),
+	}
+
+	ids, err := transform.AssignResourceIDs(resources, nil)
+	require.NoError(t, err)
+	assert.Equal(t, "service-my-web", ids[resources[0]])
+	assert.Equal(t, "service-your-web", ids[resources[1]])
 }
 
 func TestToCamelCase_Empty(t *testing.T) {

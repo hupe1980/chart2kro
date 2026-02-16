@@ -79,7 +79,7 @@ func (l *RepositoryLoader) Load(ctx context.Context, ref string, opts LoadOption
 	if opts.RepoURL == "" {
 		entry, err := lookupRepoEntry(repoName)
 		if err != nil {
-			return nil, fmt.Errorf("repository URL (--repo-url) is required for reference %q: %w", ref, err)
+			return nil, err
 		}
 
 		opts.RepoURL = entry.URL
@@ -260,6 +260,15 @@ func lookupRepoEntry(name string) (*repo.Entry, error) {
 
 	configPath := defaultRepoConfigPath()
 
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		return nil, fmt.Errorf(
+			"repository %q not configured (no Helm repositories file found at %s)\n"+
+				"  Use --repo-url to specify the repository URL, or run:\n"+
+				"  helm repo add %s <repository-url>",
+			name, configPath, name,
+		)
+	}
+
 	repoFile, err := repo.LoadFile(configPath)
 	if err != nil {
 		return nil, fmt.Errorf("loading Helm repositories config %q: %w", configPath, err)
@@ -267,7 +276,12 @@ func lookupRepoEntry(name string) (*repo.Entry, error) {
 
 	entry := repoFile.Get(name)
 	if entry == nil {
-		return nil, fmt.Errorf("repository %q not found in %q", name, configPath)
+		return nil, fmt.Errorf(
+			"repository %q not found in %s\n"+
+				"  Use --repo-url to specify the repository URL, or run:\n"+
+				"  helm repo add %s <repository-url>",
+			name, configPath, name,
+		)
 	}
 
 	return entry, nil

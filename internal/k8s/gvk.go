@@ -4,10 +4,11 @@ import "k8s.io/apimachinery/pkg/runtime/schema"
 
 // GVK classification functions for branching by resource kind.
 
-// IsWorkload returns true for workload resources.
+// IsWorkload returns true for workload resources (pod-bearing kinds).
+// This must stay consistent with WorkloadKinds in resource.go.
 func IsWorkload(gvk schema.GroupVersionKind) bool {
 	switch gvk.Kind {
-	case "Deployment", "StatefulSet", "DaemonSet":
+	case "Deployment", "StatefulSet", "DaemonSet", "ReplicaSet":
 		return gvk.Group == "apps"
 	case "Job", "CronJob":
 		return gvk.Group == "batch"
@@ -74,4 +75,40 @@ func IsRBAC(gvk schema.GroupVersionKind) bool {
 // IsServiceAccount returns true for ServiceAccount resources.
 func IsServiceAccount(gvk schema.GroupVersionKind) bool {
 	return (gvk.Group == "" || gvk.Group == "core") && gvk.Kind == "ServiceAccount"
+}
+
+// --- Individual kind classifiers ---
+
+// IsDeployment returns true for Deployment resources.
+func IsDeployment(gvk schema.GroupVersionKind) bool {
+	return gvk.Kind == "Deployment" && gvk.Group == "apps"
+}
+
+// IsStatefulSet returns true for StatefulSet resources.
+func IsStatefulSet(gvk schema.GroupVersionKind) bool {
+	return gvk.Kind == "StatefulSet" && gvk.Group == "apps"
+}
+
+// IsDaemonSet returns true for DaemonSet resources.
+func IsDaemonSet(gvk schema.GroupVersionKind) bool {
+	return gvk.Kind == "DaemonSet" && gvk.Group == "apps"
+}
+
+// IsJob returns true for Job resources.
+func IsJob(gvk schema.GroupVersionKind) bool {
+	return gvk.Kind == "Job" && gvk.Group == "batch"
+}
+
+// IsPVC returns true for PersistentVolumeClaim resources.
+func IsPVC(gvk schema.GroupVersionKind) bool {
+	return gvk.Kind == "PersistentVolumeClaim" && (gvk.Group == "" || gvk.Group == "core")
+}
+
+// APIVersion converts a GVK to an apiVersion string (e.g., "apps/v1" or "v1").
+func APIVersion(gvk schema.GroupVersionKind) string {
+	if gvk.Group == "" {
+		return gvk.Version
+	}
+
+	return gvk.Group + "/" + gvk.Version
 }

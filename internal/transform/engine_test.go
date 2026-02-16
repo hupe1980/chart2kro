@@ -217,12 +217,12 @@ func TestEngine_Transform_IncludeAllValuesFalse(t *testing.T) {
 }
 
 func TestEngine_Transform_IDCollision(t *testing.T) {
-	// Two Services with name segments that collide.
+	// Two Services with identical names — true collision.
 	resources := []*k8s.Resource{
-		makeFullResource("v1", "Service", "app-web", map[string]interface{}{
+		makeFullResource("v1", "Service", "web", map[string]interface{}{
 			"spec": map[string]interface{}{"type": "ClusterIP"},
 		}),
-		makeFullResource("v1", "Service", "my-web", map[string]interface{}{
+		makeFullResource("v1", "Service", "web", map[string]interface{}{
 			"spec": map[string]interface{}{"type": "ClusterIP"},
 		}),
 	}

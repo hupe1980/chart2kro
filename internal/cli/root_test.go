@@ -110,7 +110,7 @@ func TestRootCommand_InvalidLogFormat(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// Stub commands return non-zero exit code via Execute()
+// Subcommands return non-zero exit code via Execute()
 // ---------------------------------------------------------------------------
 
 func TestExecute_ConvertReturnsExitCode1_BadRef(t *testing.T) {
@@ -133,6 +133,19 @@ func TestExecute_Success(t *testing.T) {
 	code := Execute()
 	// Execute runs with no args, which shows help and returns 0.
 	assert.Equal(t, 0, code)
+}
+
+func TestExecute_ErrorPrintsToStderr(t *testing.T) {
+	cmd := NewRootCommand()
+	errBuf := new(bytes.Buffer)
+	cmd.SetOut(new(bytes.Buffer))
+	cmd.SetErr(errBuf)
+	cmd.SetArgs([]string{"convert", "nonexistent-chart-ref"})
+
+	code := executeRoot(cmd)
+	assert.NotEqual(t, 0, code)
+	assert.Contains(t, errBuf.String(), "Error:")
+	assert.Contains(t, errBuf.String(), "loading chart")
 }
 
 func TestExecute_VersionSubcommand(t *testing.T) {

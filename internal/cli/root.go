@@ -30,9 +30,17 @@ func (e *ExitError) Unwrap() error { return e.Err }
 
 // Execute builds the command tree, runs it, and returns the exit code.
 func Execute() int {
-	cmd := NewRootCommand()
+	return executeRoot(NewRootCommand())
+}
 
+// executeRoot runs the given root command and returns the process exit code.
+// Errors are printed to the command's stderr since SilenceErrors is enabled.
+func executeRoot(cmd *cobra.Command) int {
 	if err := cmd.Execute(); err != nil {
+		// SilenceErrors is true, so cobra won't print the error.
+		// We print it ourselves to stderr.
+		_, _ = fmt.Fprintln(cmd.ErrOrStderr(), "Error:", err)
+
 		var exitErr *ExitError
 		if errors.As(err, &exitErr) {
 			return exitErr.Code

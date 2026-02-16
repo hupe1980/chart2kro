@@ -30,7 +30,13 @@ func NewMultiLoader() *MultiLoader {
 func (m *MultiLoader) Load(ctx context.Context, ref string, opts LoadOptions) (*chart.Chart, error) {
 	st, err := Detect(ref)
 	if err != nil {
-		return nil, err
+		// When detection fails but a repo URL is explicitly provided,
+		// treat a plain chart name (e.g. "my-chart") as a repository source.
+		if opts.RepoURL != "" {
+			st = SourceRepository
+		} else {
+			return nil, err
+		}
 	}
 
 	switch st {

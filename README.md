@@ -8,11 +8,12 @@
 [![Release](https://img.shields.io/github/v/release/hupe1980/chart2kro)](https://github.com/hupe1980/chart2kro/releases)
 [![Go Report Card](https://goreportcard.com/badge/github.com/hupe1980/chart2kro)](https://goreportcard.com/report/github.com/hupe1980/chart2kro)
 [![Go Version](https://img.shields.io/github/go-mod/go-version/hupe1980/chart2kro)](https://github.com/hupe1980/chart2kro/blob/main/go.mod)
+[![Go Reference](https://pkg.go.dev/badge/github.com/hupe1980/chart2kro/pkg/chart2kro.svg)](https://pkg.go.dev/github.com/hupe1980/chart2kro/pkg/chart2kro)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 
 `chart2kro` reads a Helm chart, renders its templates, and produces a fully functional [KRO](https://kro.run) `ResourceGraphDefinition` (RGD) — turning your chart into a reusable, composable platform abstraction.
 
-[Quick Start](#-quick-start) · [Examples](examples/) · [Documentation](#-documentation)
+[Quick Start](#-quick-start) · [Go Library](#-go-library) · [Examples](examples/) · [Documentation](#-documentation)
 
 </div>
 
@@ -33,6 +34,7 @@
 | 📋 | **Plan** | Terraform-like dry-run with schema fields, resources, and evolution analysis |
 | 👀 | **Watch** | Auto-re-convert on file changes with debouncing, validation, and auto-apply |
 | 🔌 | **Extensible** | Transformer plugin system with built-in and config-based overrides |
+| 📦 | **Go Library** | Embed chart2kro in your own tools via the `pkg/chart2kro` API |
 
 ---
 
@@ -159,8 +161,8 @@ chart2kro convert <chart-reference> [flags]
 | `--set-file` | | | Set values from file content |
 | `--include-hooks` | | `false` | Include hooks as regular resources |
 | `--kind` | | | Custom Kind for the generated RGD |
-| `--api-version` | | | Custom API version (e.g., `myapp.kro.run/v1alpha1`) |
-| `--group` | | | Custom API group (e.g., `myapp.kro.run`) |
+| `--api-version` | | `v1alpha1` | Custom API version for the generated RGD |
+| `--group` | | `kro.run` | Custom API group for the generated RGD |
 | `--include-all-values` | | `false` | Include all values in schema, even unreferenced |
 | `--flat-schema` | | `false` | Flatten nested values into camelCase fields |
 | `--output` | `-o` | | Write output to file instead of stdout |
@@ -341,7 +343,73 @@ See [docs/configuration.md](docs/configuration.md) for the full reference.
 
 ---
 
-## 🐚 Shell Completion
+## � Go Library
+
+chart2kro can be used as a Go library in your own tools. The public API lives in `pkg/chart2kro` and uses the functional options pattern.
+
+### Install
+
+```bash
+go get github.com/hupe1980/chart2kro/pkg/chart2kro
+```
+
+### Basic Usage
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+
+	"github.com/hupe1980/chart2kro/pkg/chart2kro"
+)
+
+func main() {
+	result, err := chart2kro.Convert(context.Background(), "./my-chart/")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println(string(result.YAML))
+}
+```
+
+### With Options
+
+```go
+result, err := chart2kro.Convert(ctx, "oci://ghcr.io/org/my-chart:1.0.0",
+	chart2kro.WithReleaseName("my-release"),
+	chart2kro.WithNamespace("production"),
+	chart2kro.WithIncludeAllValues(),
+	chart2kro.WithTimeout(60 * time.Second),
+	chart2kro.WithSchemaOverrides(map[string]chart2kro.SchemaOverride{
+		"replicaCount": {Type: "integer", Default: 3},
+	}),
+)
+```
+
+### Result
+
+The `Result` struct provides:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `YAML` | `[]byte` | Rendered RGD YAML |
+| `RGDMap` | `map[string]interface{}` | Structured RGD for further manipulation |
+| `ChartName` | `string` | Source chart name |
+| `ChartVersion` | `string` | Source chart version |
+| `ResourceCount` | `int` | Number of Kubernetes resources |
+| `SchemaFieldCount` | `int` | Number of extracted schema parameters |
+| `DependencyEdges` | `int` | Number of dependency edges in the graph |
+| `HardenResult` | `*HardenSummary` | Hardening details (when enabled) |
+
+See [docs/library-api.md](docs/library-api.md) for the full API reference.
+
+---
+
+## �🐚 Shell Completion
 
 ```bash
 # Bash
@@ -364,6 +432,7 @@ chart2kro completion fish > ~/.config/fish/completions/chart2kro.fish
 | ⚙️ [Configuration](docs/configuration.md) | `.chart2kro.yaml` configuration reference |
 | 🏗️ [Transformation Pipeline](docs/transformation-pipeline.md) | Architecture and pipeline stage details |
 | 💡 [Examples](examples/) | Working examples with real Helm charts |
+| 📦 [Library API](docs/library-api.md) | Go library API reference and examples |
 
 ---
 

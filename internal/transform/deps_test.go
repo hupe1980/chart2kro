@@ -47,6 +47,43 @@ func TestDependencyGraph_Resource(t *testing.T) {
 	assert.Nil(t, g.Resource("nonexistent"))
 }
 
+func TestDependencyGraph_EdgeCount(t *testing.T) {
+	t.Run("empty graph", func(t *testing.T) {
+		g := transform.NewDependencyGraph()
+		assert.Equal(t, 0, g.EdgeCount())
+	})
+
+	t.Run("nodes without edges", func(t *testing.T) {
+		g := transform.NewDependencyGraph()
+		g.AddNode("a", makeFullResource("v1", "ConfigMap", "a", nil))
+		g.AddNode("b", makeFullResource("v1", "Secret", "b", nil))
+		assert.Equal(t, 0, g.EdgeCount())
+	})
+
+	t.Run("linear chain", func(t *testing.T) {
+		g := transform.NewDependencyGraph()
+		g.AddNode("a", makeFullResource("v1", "ConfigMap", "a", nil))
+		g.AddNode("b", makeFullResource("v1", "Secret", "b", nil))
+		g.AddNode("c", makeFullResource("apps/v1", "Deployment", "c", nil))
+		g.AddEdge("c", "b")
+		g.AddEdge("b", "a")
+		assert.Equal(t, 2, g.EdgeCount())
+	})
+
+	t.Run("diamond", func(t *testing.T) {
+		g := transform.NewDependencyGraph()
+		g.AddNode("a", makeFullResource("v1", "ConfigMap", "a", nil))
+		g.AddNode("b", makeFullResource("v1", "Secret", "b", nil))
+		g.AddNode("c", makeFullResource("v1", "Secret", "c", nil))
+		g.AddNode("d", makeFullResource("apps/v1", "Deployment", "d", nil))
+		g.AddEdge("d", "b")
+		g.AddEdge("d", "c")
+		g.AddEdge("b", "a")
+		g.AddEdge("c", "a")
+		assert.Equal(t, 4, g.EdgeCount())
+	})
+}
+
 func TestTopologicalSort_LinearChain(t *testing.T) {
 	g := transform.NewDependencyGraph()
 	g.AddNode("a", makeFullResource("v1", "ConfigMap", "a", nil))

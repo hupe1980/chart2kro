@@ -199,7 +199,7 @@ func (g *Generator) buildResource(id string, r *k8s.Resource, depGraph *transfor
 	if r.Object != nil {
 		template = maputil.DeepCopyMap(r.Object.Object)
 	} else {
-		template["apiVersion"] = transform.GVKToAPIVersion(r.GVK)
+		template["apiVersion"] = k8s.APIVersion(r.GVK)
 		template["kind"] = r.Kind()
 		template["metadata"] = map[string]interface{}{"name": r.Name}
 	}

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 
 	sigsyaml "sigs.k8s.io/yaml"
 
@@ -176,7 +177,11 @@ func runPipeline(ctx context.Context, ref string, opts *convertOptions) (*pipeli
 	// sentinel diffing are also used by the transformation engine.
 	var transformCfg *config.TransformConfig
 
-	configData, _ := tryReadConfigFile(ctx)
+	configData, configErr := tryReadConfigFile(ctx)
+
+	if configErr != nil && !os.IsNotExist(configErr) {
+		logger.Warn("reading config file failed", slog.String("error", configErr.Error()))
+	}
 
 	if configData != nil {
 		parsed, parseErr := config.ParseTransformConfig(configData)

@@ -119,7 +119,7 @@ func runWatch(ctx context.Context, cmd *cobra.Command, ref string, opts *watchOp
 	var validateFn watch.ValidateFunc
 	if opts.validate {
 		validateFn = func(valCtx context.Context, outputPath string) error {
-			return runValidateFile(valCtx, outputPath, false)
+			return runValidateFile(valCtx, outputPath)
 		}
 	}
 
@@ -138,7 +138,7 @@ func runWatch(ctx context.Context, cmd *cobra.Command, ref string, opts *watchOp
 
 // runValidateFile validates an RGD file. This is a lightweight wrapper
 // around the validate command's core logic.
-func runValidateFile(_ context.Context, filePath string, _ bool) error {
+func runValidateFile(_ context.Context, filePath string) error {
 	rgdMap, err := loadRGDFile(filePath, 7)
 	if err != nil {
 		return err

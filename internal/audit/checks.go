@@ -159,9 +159,9 @@ func (c *RunAsRootCheck) Run(_ context.Context, resources []*k8s.Resource) []Fin
 		podRunAsNonRoot, _ := podSC["runAsNonRoot"].(bool)
 
 		sc, _ := container["securityContext"].(map[string]interface{})
-		runAsNonRoot, hasField := sc["runAsNonRoot"]
+		containerRunAsNonRoot, hasField := sc["runAsNonRoot"].(bool)
 
-		if !podRunAsNonRoot && (!hasField || runAsNonRoot == false) {
+		if !podRunAsNonRoot && (!hasField || !containerRunAsNonRoot) {
 			findings = append(findings, Finding{
 				RuleID:       c.ID(),
 				Severity:     SeverityCritical,

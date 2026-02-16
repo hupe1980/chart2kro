@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
+	"github.com/hupe1980/chart2kro/internal/k8s"
 	"github.com/hupe1980/chart2kro/internal/transform"
 )
 
@@ -277,7 +278,7 @@ func TestCompoundIncludeWhen(t *testing.T) {
 	})
 }
 
-func TestGVKToAPIVersion(t *testing.T) {
+func TestAPIVersion(t *testing.T) {
 	tests := []struct {
 		name     string
 		gvk      schema.GroupVersionKind
@@ -290,7 +291,39 @@ func TestGVKToAPIVersion(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.expected, transform.GVKToAPIVersion(tt.gvk))
+			assert.Equal(t, tt.expected, k8s.APIVersion(tt.gvk))
+		})
+	}
+}
+
+func TestValidateExpression(t *testing.T) {
+	tests := []struct {
+		name    string
+		expr    string
+		wantErr bool
+		errMsg  string
+	}{
+		{"valid simple", "${schema.spec.replicas}", false, ""},
+		{"valid interpolation", "${schema.spec.image.repo}:${schema.spec.image.tag}", false, ""},
+		{"valid self ref", "${self.status.availableReplicas == self.status.replicas}", false, ""},
+		{"valid compound", "${schema.spec.a && schema.spec.b}", false, ""},
+		{"empty string", "", true, "empty CEL expression"},
+		{"no expression", "plain text", true, "no CEL expression found"},
+		{"unbalanced open", "${schema.spec.replicas", true, "unbalanced CEL expression delimiters"},
+		{"unbalanced close", "schema.spec.replicas}", true, "no CEL expression found"},
+		{"missing closing brace", "${foo ${bar}", true, "unbalanced CEL expression delimiters"},
+		{"valid literal around expr", "prefix-${schema.spec.name}-suffix", false, ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := transform.ValidateExpression(tt.expr)
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errMsg)
+			} else {
+				assert.NoError(t, err)
+			}
 		})
 	}
 }

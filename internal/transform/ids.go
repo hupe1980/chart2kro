@@ -51,10 +51,12 @@ func AssignResourceIDs(resources []*k8s.Resource, overrides map[string]string) (
 			continue
 		}
 
-		// Multiple resources of the same kind: append name segment.
-		for _, r := range group {
-			suffix := nameSegment(r.Name)
-			ids[r] = sanitizeID(kind + "-" + suffix)
+		// Multiple resources of the same kind: append name segments.
+		// Start with the last segment; if there are collisions, progressively
+		// include more segments from the right until all IDs are unique.
+		suffixes := disambiguateSuffixes(group)
+		for i, r := range group {
+			ids[r] = sanitizeID(kind + "-" + suffixes[i])
 		}
 	}
 
@@ -89,14 +91,62 @@ func sanitizeID(s string) string {
 	return strings.Trim(s, "-")
 }
 
-// nameSegment extracts a short disambiguating suffix from a resource name.
-func nameSegment(name string) string {
-	parts := strings.Split(name, "-")
-	if len(parts) <= 1 {
-		return name
+// disambiguateSuffixes computes the shortest unique suffix for each resource
+// in a group that share the same Kind. It starts with the last hyphen-separated
+// segment of each name and progressively includes more segments from the right
+// until every suffix in the group is unique.
+func disambiguateSuffixes(group []*k8s.Resource) []string {
+	// Split each name into parts.
+	allParts := make([][]string, len(group))
+	for i, r := range group {
+		allParts[i] = strings.Split(r.Name, "-")
 	}
 
-	return parts[len(parts)-1]
+	// Start with 1 segment from the right, increase until unique.
+	maxParts := 0
+	for _, parts := range allParts {
+		if len(parts) > maxParts {
+			maxParts = len(parts)
+		}
+	}
+
+	for depth := 1; depth <= maxParts; depth++ {
+		suffixes := make([]string, len(group))
+		for i, parts := range allParts {
+			start := len(parts) - depth
+			if start < 0 {
+				start = 0
+			}
+
+			suffixes[i] = strings.Join(parts[start:], "-")
+		}
+
+		if allUnique(suffixes) {
+			return suffixes
+		}
+	}
+
+	// Fallback: use the full name (should always be unique).
+	suffixes := make([]string, len(group))
+	for i, r := range group {
+		suffixes[i] = r.Name
+	}
+
+	return suffixes
+}
+
+// allUnique returns true if all strings in the slice are distinct.
+func allUnique(ss []string) bool {
+	seen := make(map[string]bool, len(ss))
+	for _, s := range ss {
+		if seen[s] {
+			return false
+		}
+
+		seen[s] = true
+	}
+
+	return true
 }
 
 // ToCamelCase converts a dot-separated or hyphenated path to camelCase.

@@ -489,8 +489,8 @@ All chart loading flags from `convert` are supported (`--repo-url`, `--version`,
 
 | Flag | Short | Default | Description |
 |------|-------|---------|-------------|
-| `--format <fmt>` | `-f` | `table` | Output format: `table`, `json`, `sarif` |
-| `--fail-on <severity>` | | `critical` | Minimum severity that causes a non-zero exit |
+| `--format <fmt>` | | `table` | Output format: `table`, `json`, `sarif` |
+| `--fail-on <severity>` | | | Minimum severity that causes a non-zero exit (exit code 9) |
 | `--security-level <level>` | | `restricted` | Target PSS level: `none`, `baseline`, `restricted` |
 | `--policy <path>` | | | Custom policy YAML file (can be repeated) |
 

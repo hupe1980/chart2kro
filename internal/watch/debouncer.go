@@ -8,12 +8,14 @@ import (
 
 // Debouncer coalesces rapid events into a single callback invocation.
 // Only the last event within the configured interval triggers the callback.
+// At most one callback runs at a time; events during execution are coalesced.
 type Debouncer struct {
 	interval time.Duration
 	mu       sync.Mutex
 	timer    *time.Timer
 	callback func(path string)
 	lastPath string
+	running  bool // guards against concurrent callback executions
 }
 
 // NewDebouncer creates a debouncer that waits for interval of quiet before
@@ -45,9 +47,23 @@ func (d *Debouncer) Trigger(path string) {
 		}()
 
 		d.mu.Lock()
+		if d.running {
+			// Another callback is still executing — skip this invocation.
+			// The running callback already has the latest path.
+			d.mu.Unlock()
+
+			return
+		}
+
+		d.running = true
 		p := d.lastPath
 		d.mu.Unlock()
+
 		d.callback(p)
+
+		d.mu.Lock()
+		d.running = false
+		d.mu.Unlock()
 	})
 }
 

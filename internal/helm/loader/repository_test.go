@@ -526,7 +526,8 @@ func TestLookupRepoEntry_NoConfigFile(t *testing.T) {
 
 	_, err := lookupRepoEntry("myrepo")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "loading Helm repositories config")
+	assert.Contains(t, err.Error(), "repository \"myrepo\" not configured")
+	assert.Contains(t, err.Error(), "helm repo add myrepo")
 }
 
 // ---------------------------------------------------------------------------
@@ -627,5 +628,6 @@ func TestRepositoryLoader_Load_NoRepoURL_NoConfig(t *testing.T) {
 	loader := NewRepositoryLoader()
 	_, err := loader.Load(context.Background(), "myrepo/chart", LoadOptions{})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "repository URL (--repo-url) is required")
+	assert.Contains(t, err.Error(), "repository \"myrepo\" not configured")
+	assert.Contains(t, err.Error(), "helm repo add myrepo")
 }

@@ -9,6 +9,24 @@ import (
 	"github.com/hupe1980/chart2kro/internal/k8s"
 )
 
+// ---------------------------------------------------------------------------
+// CEL expression builders
+//
+// chart2kro GENERATES CEL expression strings (e.g., "${schema.spec.replicas}")
+// for KRO to evaluate at runtime inside the cluster. It does NOT evaluate CEL.
+//
+// Why NOT use cel-go or kro/pkg/cel?
+//   - KRO's ${…} template syntax is a layer above standard CEL — cel-go
+//     cannot parse it.
+//   - kro/pkg/cel compiles and evaluates CEL against live K8s resources via
+//     rest.Config — the wrong abstraction for an offline code-generator.
+//   - The expressions chart2kro produces are simple field references and
+//     comparisons — no type-checking or compilation benefit.
+//   - Adding cel-go would bloat the binary by ~8 MB for zero runtime value.
+//
+// See docs/adr/001-no-kro-pkg-dependency.md for the full rationale.
+// ---------------------------------------------------------------------------
+
 // SchemaRef generates a CEL expression referencing a schema field.
 // e.g., SchemaRef("spec", "replicas") => "${schema.spec.replicas}".
 // Returns an error-indicative string if path is empty.
@@ -105,15 +123,15 @@ func (c ReadyWhenCondition) String() string {
 // DefaultReadyWhen returns default readiness conditions for a given GVK.
 func DefaultReadyWhen(gvk schema.GroupVersionKind) []ReadyWhenCondition {
 	switch {
-	case isDeployment(gvk):
+	case k8s.IsDeployment(gvk):
 		return []ReadyWhenCondition{
 			{Key: "self.status.availableReplicas", Operator: "==", Value: "self.status.replicas"},
 		}
-	case isStatefulSet(gvk):
+	case k8s.IsStatefulSet(gvk):
 		return []ReadyWhenCondition{
 			{Key: "self.status.readyReplicas", Operator: "==", Value: "self.status.replicas"},
 		}
-	case isDaemonSet(gvk):
+	case k8s.IsDaemonSet(gvk):
 		return []ReadyWhenCondition{
 			{Key: "self.status.numberReady", Operator: "==", Value: "self.status.desiredNumberScheduled"},
 		}
@@ -121,11 +139,11 @@ func DefaultReadyWhen(gvk schema.GroupVersionKind) []ReadyWhenCondition {
 		return []ReadyWhenCondition{
 			{Key: "self.spec.clusterIP", Operator: "!=", Value: `""`},
 		}
-	case isJob(gvk):
+	case k8s.IsJob(gvk):
 		return []ReadyWhenCondition{
 			{Key: "self.status.succeeded", Operator: ">", Value: "0"},
 		}
-	case isPVC(gvk):
+	case k8s.IsPVC(gvk):
 		return []ReadyWhenCondition{
 			{Key: "self.status.phase", Operator: "==", Value: `"Bound"`},
 		}
@@ -146,17 +164,17 @@ type StatusField struct {
 // Fields that may be absent on newly created resources use optional "?" accessors.
 func DefaultStatusProjections(gvk schema.GroupVersionKind, resourceID string) []StatusField {
 	switch {
-	case isDeployment(gvk):
+	case k8s.IsDeployment(gvk):
 		return []StatusField{
 			{Name: resourceID + "AvailableReplicas", CELExpression: ResourceRef(resourceID, "status", "availableReplicas")},
 			{Name: resourceID + "ReadyReplicas", CELExpression: ResourceRef(resourceID, "status", "readyReplicas")},
 		}
-	case isStatefulSet(gvk):
+	case k8s.IsStatefulSet(gvk):
 		return []StatusField{
 			{Name: resourceID + "ReadyReplicas", CELExpression: ResourceRef(resourceID, "status", "readyReplicas")},
 			{Name: resourceID + "CurrentReplicas", CELExpression: ResourceRef(resourceID, "status", "currentReplicas")},
 		}
-	case isDaemonSet(gvk):
+	case k8s.IsDaemonSet(gvk):
 		return []StatusField{
 			{Name: resourceID + "NumberReady", CELExpression: ResourceRef(resourceID, "status", "numberReady")},
 			{Name: resourceID + "DesiredScheduled", CELExpression: ResourceRef(resourceID, "status", "desiredNumberScheduled")},
@@ -171,7 +189,7 @@ func DefaultStatusProjections(gvk schema.GroupVersionKind, resourceID string) []
 				PathSegment{Name: "ip", Optional: true},
 			)},
 		}
-	case isJob(gvk):
+	case k8s.IsJob(gvk):
 		return []StatusField{
 			{Name: resourceID + "Succeeded", CELExpression: ResourceRef(resourceID, "status", "succeeded")},
 			{Name: resourceID + "Failed", CELExpression: ResourceRef(resourceID, "status", "failed")},
@@ -180,7 +198,7 @@ func DefaultStatusProjections(gvk schema.GroupVersionKind, resourceID string) []
 				PathSegment{Name: "completionTime", Optional: true},
 			)},
 		}
-	case isPVC(gvk):
+	case k8s.IsPVC(gvk):
 		return []StatusField{
 			{Name: resourceID + "Phase", CELExpression: ResourceRef(resourceID, "status", "phase")},
 		}
@@ -249,31 +267,43 @@ func conditionFragment(c IncludeCondition) string {
 	return fmt.Sprintf("schema.spec.%s %s %s", c.Path, c.Operator, c.Value)
 }
 
-// GVKToAPIVersion converts a GVK to an apiVersion string.
-func GVKToAPIVersion(gvk schema.GroupVersionKind) string {
-	if gvk.Group == "" {
-		return gvk.Version
+// ValidateExpression checks that a KRO CEL expression string has balanced
+// ${...} delimiters and is non-empty. It does NOT compile or type-check
+// the inner CEL — that is KRO's responsibility at apply time.
+func ValidateExpression(expr string) error {
+	if expr == "" {
+		return fmt.Errorf("empty CEL expression")
 	}
 
-	return gvk.Group + "/" + gvk.Version
-}
+	depth := 0
+	inExpr := false
 
-func isDeployment(gvk schema.GroupVersionKind) bool {
-	return gvk.Kind == "Deployment" && gvk.Group == "apps"
-}
+	for i := 0; i < len(expr); i++ {
+		if i+1 < len(expr) && expr[i] == '$' && expr[i+1] == '{' {
+			depth++
+			inExpr = true
+			i++ // skip '{'
 
-func isStatefulSet(gvk schema.GroupVersionKind) bool {
-	return gvk.Kind == "StatefulSet" && gvk.Group == "apps"
-}
+			continue
+		}
 
-func isDaemonSet(gvk schema.GroupVersionKind) bool {
-	return gvk.Kind == "DaemonSet" && gvk.Group == "apps"
-}
+		if inExpr && expr[i] == '}' {
+			depth--
+			if depth == 0 {
+				inExpr = false
+			}
 
-func isJob(gvk schema.GroupVersionKind) bool {
-	return gvk.Kind == "Job" && gvk.Group == "batch"
-}
+			continue
+		}
+	}
 
-func isPVC(gvk schema.GroupVersionKind) bool {
-	return gvk.Kind == "PersistentVolumeClaim" && (gvk.Group == "" || gvk.Group == "core")
+	if depth != 0 {
+		return fmt.Errorf("unbalanced CEL expression delimiters in %q", expr)
+	}
+
+	if !strings.Contains(expr, "${") {
+		return fmt.Errorf("no CEL expression found in %q (expected ${...} syntax)", expr)
+	}
+
+	return nil
 }

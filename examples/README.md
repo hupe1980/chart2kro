@@ -48,6 +48,6 @@ go run ./cmd/chart2kro/ diff examples/nginx/chart/ --existing examples/nginx/rgd
 # Audit for security issues
 go run ./cmd/chart2kro/ audit examples/microservice/chart/
 
-# Generate docs for the custom resource
-go run ./cmd/chart2kro/ docs examples/nginx/chart/ --kind NginxApp
+# Generate docs from an RGD file
+go run ./cmd/chart2kro/ docs examples/nginx/rgd.yaml
 ```
