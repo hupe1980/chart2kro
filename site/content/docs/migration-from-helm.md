@@ -1,6 +1,6 @@
 +++
 title = "Migrating from Helm"
-description = "Move a Helm release to a kro instance: design the API, install it, turn `helm get values` into an instance, and switch over without downtime."
+description = "Move a Helm release to a kro instance without downtime: design the API, install it, turn `helm get values` into an instance, switch over, and go back to Helm if needed."
 weight = 40
 
 [extra]
@@ -48,3 +48,18 @@ kro creates objects named after the instance: `my-release-mychart`, like Helm's 
 - **Existing releases:** objects created by Helm carry Helm's labels and ownership metadata. The safe path is to create the instance under a new name (or in a new namespace), move traffic, and then `helm uninstall` the release.
 
 Adopting running Helm objects in place is not supported.
+
+## Going back to Helm
+
+An instance's `spec` uses the chart's value paths, so it is already a values file. To move an app back to Helm:
+
+```bash
+yq '.spec | del(.chart2kroGenerated)' my-release.yaml > values.yaml
+helm install my-release-helm ./mychart -n prod -f platform-defaults.yaml -f values.yaml
+# move traffic, then:
+kubectl delete mychart my-release -n prod
+```
+
+- Pass the same `-f` files you used for the conversion: they hold the API's defaults.
+- Use a new release name (or namespace). The instance's objects have the names Helm would use for `my-release`, so installing under that name fails while the instance exists.
+- `chart2kroGenerated.*` inputs are values the chart generates itself (passwords, keys). Helm generates new ones on install. If data depends on them, set the chart's own value for them (for example `auth.password`) or its `existingSecret` option.
