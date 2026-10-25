@@ -12,7 +12,7 @@ just examples        # regenerate all
 | [redis](redis/) | A StatefulSet with a headless Service and persistence: shows readiness for StatefulSets and isolated instances of a stateful workload. | 4 | 11 |
 | [microservice](microservice/) | A Deployment with Ingress and an HPA behind feature flags: shows booleans becoming `includeWhen` and CEL conditionals. | 5 | 16 |
 
-Try one on a cluster with kro ≥ v0.9.1:
+Try one on a cluster with kro ≥ v0.9.2:
 
 ```bash
 kubectl apply -f examples/redis/rgd.yaml

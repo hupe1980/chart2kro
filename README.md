@@ -30,7 +30,7 @@
 | 🚦 | **CI-ready** | `convert --check` catches stale output, `diff` catches breaking API changes, and a GitHub Action runs both |
 | 📦 | **Go library** | The CLI is a thin client of `pkg/chart2kro` |
 
-One static binary. No Helm, kubectl or cluster needed to convert. Output runs on **kro ≥ v0.9.1**.
+One static binary. No Helm, kubectl or cluster needed to convert. Output runs on **kro ≥ v0.9.2**.
 
 ---
 

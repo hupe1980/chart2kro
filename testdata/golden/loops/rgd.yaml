@@ -134,7 +134,7 @@ spec:
       loopImage: string | default="busybox:1.36"
       queues: '[]string | default=["orders"] listType=set description="String list, two documents per entry (ConfigMap + Secret)."'
       tenants: '[]TenantsEntry | default=[{"name":"alpha","quota":"10","tier":"gold"}] listType=map listMapKey=name description="Object list: one ConfigMap per tenant, named by .name (collection, listMapKey=name)."'
-      workers: '[]WorkersEntry | default=[{"size":1}] listType=set description="Object list named by the loop index."'
+      workers: '[]WorkersEntry | default=[{"size":1}] listType=map listMapKey=size description="Object list named by the loop index."'
       workloads:
         apps: '[]WorkloadsAppsEntry | default=[{"name":"api","replicas":1}] listType=map listMapKey=name'
         enabled: boolean | default=true

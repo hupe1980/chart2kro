@@ -30,4 +30,4 @@ What chart2kro cannot translate, and what it does instead. Values affected by th
 | Jobs | Reconciled by kro, not run once. A warning is printed for Jobs with `ttlSecondsAfterFinished` | kro recreates a Job that Kubernetes deleted, so it runs again |
 | Kubernetes versions | Rendering and validation use the embedded catalogs for 1.35, 1.36 and 1.37 (`--kube-version`) | Validation is offline; newer versions need a chart2kro release |
 | Very large charts | Exit 5 above 1 MiB, naming the largest resources | The API server limits object size; use `--exclude`, `--exclude-subchart` or a smaller `--expose` |
-| kro versions | Output needs kro ≥ v0.9.1 | It uses kro's `hash`, `json` and `random` CEL libraries |
+| kro versions | Output needs kro ≥ v0.9.2 | It uses kro's `hash`, `json` and `random` CEL libraries, and list-type schema markers for collections |

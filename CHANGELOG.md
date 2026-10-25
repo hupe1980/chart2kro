@@ -13,6 +13,11 @@ All notable changes to this project are documented here. The format follows [Kee
 - **GitHub Action:** `uses: hupe1980/chart2kro@v0.2.0` fails a pull request when the committed output is stale or the API change breaks existing instances, and writes a job summary.
 - **Report:** value kind `collection`, `resources[].forEach` and `values[].description` (additive).
 
+### Changed
+
+- **kro ≥ v0.9.2:** collections use list-type schema markers, which kro v0.9.1 does not support.
+- Offline validation also applies the Kubernetes API server's checks to the CRD kro generates, so schemas a live cluster would reject fail locally.
+
 ### Fixed
 
 - `instance`: values inside lists that equal their defaults are no longer reported as changed.

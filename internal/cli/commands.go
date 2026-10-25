@@ -375,7 +375,7 @@ func newVersionCmd(g *globals) *cobra.Command {
 				"buildDate":    version.BuildDate(),
 				"go":           runtime.Version(),
 				"kro":          kroval.KroVersion(),
-				"minKro":       "v0.9.1",
+				"minKro":       "v0.9.2",
 				"kubeVersions": strings.Join(kroval.KubeVersions(), ","),
 			}
 

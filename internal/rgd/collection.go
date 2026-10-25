@@ -234,7 +234,25 @@ func listSchema(li loopInfo) (typ string, markers []string, elem map[string]any,
 		}
 	}
 
-	return "[]" + name, []string{"listType=set"}, elem, ""
+	// Without a single naming field (e.g. index-based names), entries must still be
+	// unique: key the list on all scalar fields. A set of objects would need atomic
+	// items, which kro's markers cannot express and the API server rejects.
+	var keys []string
+
+	for _, f := range li.l.Fields {
+		switch f.Type {
+		case "string", "integer", "boolean":
+			keys = append(keys, "listMapKey="+f.Name)
+		}
+	}
+
+	if len(keys) == 0 {
+		return "", nil, nil, probe.ReasonLoopElement
+	}
+
+	sort.Strings(keys)
+
+	return "[]" + name, append([]string{"listType=map"}, keys...), elem, ""
 }
 
 // loopTargets lists "<collection id>.<path>" for the report.

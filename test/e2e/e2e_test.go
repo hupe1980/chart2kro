@@ -74,7 +74,15 @@ func apply(t *testing.T, name string) *chart2kro.Result {
 	kubectl(t, "", "annotate", "rgd", rgdName, "kro.run/allow-breaking-changes=true", "--overwrite")
 	eventually(t, "RGD "+rgdName+" Active", 2*time.Minute, func() (bool, string) {
 		out, err := exec.Command("kubectl", "get", "rgd", rgdName, "-o", "jsonpath={.status.state}").CombinedOutput()
-		return err == nil && string(out) == "Active", string(out)
+		if err == nil && string(out) == "Active" {
+			return true, ""
+		}
+
+		// Include kro's reason, so a failure says why the RGD is not Active.
+		why, _ := exec.Command("kubectl", "get", "rgd", rgdName, "-o",
+			`jsonpath={range .status.conditions[?(@.status!="True")]}{.type}: {.message}{"\n"}{end}`).CombinedOutput()
+
+		return false, string(out) + "\n" + string(why)
 	})
 
 	return res

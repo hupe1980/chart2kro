@@ -115,7 +115,7 @@ a = "No. Loading, rendering, validation and verification all run in-process. You
 
 [[extra.faq]]
 q = "Which kro versions are supported?"
-a = "The generated RGDs need kro v0.9.1 or newer. chart2kro validates with the kro v0.9.4 libraries, and its end-to-end tests run on both v0.9.1 and v0.9.4."
+a = "The generated RGDs need kro v0.9.2 or newer. chart2kro validates with the kro v0.9.4 libraries, and its end-to-end tests run on both v0.9.2 and v0.9.4."
 
 [[extra.faq]]
 q = "What happens to values chart2kro cannot translate?"
