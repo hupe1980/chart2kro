@@ -1,12 +1,18 @@
+# -- Number of nginx pods
 replicaCount: 1
 
 image:
+  # -- Container image repository
   repository: nginx
+  # -- Container image tag
   tag: "1.27"
+  # -- Image pull policy (Always, IfNotPresent or Never)
   pullPolicy: IfNotPresent
 
 service:
+  # -- Service type (ClusterIP, NodePort or LoadBalancer)
   type: ClusterIP
+  # -- Service port
   port: 80
 
 resources:
@@ -17,6 +23,7 @@ resources:
     cpu: 250m
     memory: 256Mi
 
+# -- nginx server configuration (default.conf)
 config: |
   server {
     listen 80;

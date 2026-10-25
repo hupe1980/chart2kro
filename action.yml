@@ -1,0 +1,74 @@
+name: chart2kro
+description: Check that a committed kro ResourceGraphDefinition matches its Helm chart, and that a PR does not break existing instances.
+author: hupe1980
+branding:
+  icon: anchor
+  color: blue
+
+inputs:
+  chart:
+    description: Chart reference (directory, .tgz, oci://… or repo/chart)
+    required: true
+  output-dir:
+    description: Directory with the committed output of `chart2kro convert -o` (rgd.yaml, …)
+    required: true
+  args:
+    description: Extra flags for convert and diff, e.g. `-f platform.yaml --expose 'replicaCount,image.tag'`
+    required: false
+    default: ""
+  check:
+    description: Fail if output-dir is stale (`convert --check`)
+    required: false
+    default: "true"
+  diff:
+    description: Classify API changes against output-dir/rgd.yaml on the pull request's base branch
+    required: false
+    default: "true"
+  fail-on-breaking:
+    description: Fail on breaking or destructive API changes (otherwise only report them)
+    required: false
+    default: "true"
+  version:
+    description: chart2kro version to install (default the action's tag; a branch or SHA builds from source)
+    required: false
+    default: ""
+
+outputs:
+  stale:
+    description: "`true` if output-dir is stale"
+    value: ${{ steps.run.outputs.stale }}
+  breaking:
+    description: "`true` if the API has breaking or destructive changes"
+    value: ${{ steps.run.outputs.breaking }}
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Go (source build)
+      if: ${{ inputs.version == '' && !startsWith(github.action_ref, 'v') }}
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      with:
+        go-version-file: ${{ github.action_path }}/go.mod
+        cache: false
+
+    - name: Install chart2kro
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+        ACTION_REF: ${{ github.action_ref }}
+        ACTION_PATH: ${{ github.action_path }}
+      run: bash "$ACTION_PATH/action/install.sh"
+
+    - name: Check
+      id: run
+      shell: bash
+      env:
+        CHART: ${{ inputs.chart }}
+        OUTPUT_DIR: ${{ inputs.output-dir }}
+        ARGS: ${{ inputs.args }}
+        CHECK: ${{ inputs.check }}
+        DIFF: ${{ inputs.diff }}
+        FAIL_ON_BREAKING: ${{ inputs.fail-on-breaking }}
+        BASE_REF: ${{ github.base_ref }}
+        ACTION_PATH: ${{ github.action_path }}
+      run: bash "$ACTION_PATH/action/run.sh"

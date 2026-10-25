@@ -12,6 +12,8 @@ A converted chart exposes every value that can be verified, often dozens. A good
 
 ## 1. See what the chart offers
 
+`inspect` shows each value's description from the chart's `values.yaml` comments; the same text documents the generated API (`kubectl explain`).
+
 ```bash
 chart2kro inspect ./mychart
 chart2kro inspect ./mychart --format json | jq -r '.values[] | select(.outcome=="exposed") | .path'
@@ -97,6 +99,8 @@ Commit `api/` and add two checks:
 | Breaking | A field removed or retyped; a required field added; a default removed; kind, group, version or scope changed |
 | Destructive | A resource removed: kro deletes it from every instance |
 | Compatible | A field or resource added; a template, `includeWhen` or default changed |
+
+On GitHub, the [chart2kro action](@/docs/github-action.md) runs both checks in one step and writes a summary.
 
 Before upgrading the chart, run `diff` with `--version NEW`. If it is breaking, publish the new chart as a new kind or version and migrate instances.
 

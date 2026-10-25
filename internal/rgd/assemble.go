@@ -39,6 +39,8 @@ type Input struct {
 	Conditional map[string]*probe.Obj
 	// UserSecrets are value paths (dotted) supplied by the user that land in Secret data.
 	UserSecrets map[string]bool
+	// Descriptions are value descriptions from values.yaml comments, by dotted path.
+	Descriptions map[string]string
 }
 
 // Field describes one schema field.
@@ -50,7 +52,11 @@ type Field struct {
 	Origin   string // "value" or "generated"
 	// Immutable fields land in object fields Kubernetes forbids changing after creation.
 	Immutable bool
-	Targets   []string
+	// Markers are extra SimpleSchema markers (e.g. listType=map listMapKey=name).
+	Markers []string
+	// Description comes from the chart's values.yaml comments.
+	Description string
+	Targets     []string
 }
 
 // Dropped is an object left out of the RGD.
@@ -73,6 +79,12 @@ type Output struct {
 	Demote   map[string]string
 	Warnings []string
 	Isolated []string // ids whose selectors received the instance label
+	// Collections maps forEach resource ids to their list and loop position.
+	Collections map[string]Collection
+	// Types are custom schema types (element types of collection lists).
+	Types map[string]any
+
+	excludedIDs []string // collection ids excluded while their list is demoted
 }
 
 type edit struct {
@@ -85,7 +97,7 @@ type edit struct {
 
 // Assemble builds the RGD.
 func Assemble(in Input, o Options) (*Output, error) {
-	out := &Output{IDs: map[string]string{}, Keys: map[string]string{}, Injected: map[string][]manifest.Path{}, Demote: map[string]string{}}
+	out := &Output{IDs: map[string]string{}, Keys: map[string]string{}, Injected: map[string][]manifest.Path{}, Demote: map[string]string{}, Collections: map[string]Collection{}}
 
 	exposed := map[string]probe.Result{}
 	for _, r := range in.Results {
@@ -105,11 +117,64 @@ func Assemble(in Input, o Options) (*Output, error) {
 		refs[p] = ref
 	}
 
+	// Lists exposed as collections: their objects become forEach templates, and every
+	// target in a loop's objects moves to the collection's template.
+	var loops []loopInfo
+
+	for _, p := range sortedKeys(exposed) {
+		if r := exposed[p]; r.Loop != nil && refs[p] != "" {
+			loops = append(loops, loopInfo{path: p, ref: refs[p], l: r.Loop, r: r})
+		}
+	}
+
+	for p, r := range exposed {
+		exposed[p] = retarget(loops, r)
+	}
+
+	// Collections excluded by id stay excluded after their list is demoted (it then has
+	// nothing left to control): their objects are dropped, not kept as single resources.
+	var excludedLoops []loopInfo
+
+	for _, r := range in.Results {
+		if r.Loop == nil || r.Outcome == probe.Exposed {
+			continue
+		}
+
+		li := loopInfo{path: r.Candidate.Dotted(), l: r.Loop}
+		v := iteratorName(r.Candidate.Path, nil)
+
+		for _, pos := range r.Loop.Positions {
+			if id := camel(v, kindOf(pos.GVK)); contains(o.Exclude, id) {
+				excludedLoops = append(excludedLoops, li)
+				out.excludedIDs = append(out.excludedIDs, id)
+
+				break
+			}
+		}
+	}
+
 	// 1. Object set.
 	objs := map[string]*probe.Obj{}
 
 	for _, k := range in.Base.Order {
-		objs[k] = in.Base.Objects[k]
+		if translate(excludedLoops, k) != k {
+			out.Dropped = append(out.Dropped, dropped(in.Base.Objects[k], "excluded"))
+			continue
+		}
+
+		if translate(loops, k) == k {
+			objs[k] = in.Base.Objects[k]
+		}
+	}
+
+	for _, li := range loops {
+		for j, k := range li.l.Entry0Keys() {
+			if t := li.l.Template.Objects[k]; t != nil {
+				c := *t
+				c.Key = loopKey(li.path, j)
+				objs[c.Key] = &c
+			}
+		}
 	}
 
 	gates := map[string][]string{} // key → includeWhen expressions
@@ -128,6 +193,11 @@ func Assemble(in Input, o Options) (*Output, error) {
 		}
 
 		for _, k := range r.Added {
+			if strings.HasPrefix(k, loopKeyPrefix) && objs[k] != nil {
+				gates[k] = append(gates[k], onFlip)
+				continue
+			}
+
 			if c, ok := in.Conditional[k]; ok {
 				objs[k] = c
 				gates[k] = append(gates[k], onFlip)
@@ -166,7 +236,7 @@ func Assemble(in Input, o Options) (*Output, error) {
 		}
 
 		if o.Scope != nil {
-			if ns, known := o.Scope(ob.APIVersion(), ob.Kind()); known && !ns && !strings.Contains(ob.Name(), o.Release) {
+			if ns, known := o.Scope(ob.APIVersion(), ob.Kind()); known && !ns && !strings.Contains(ob.Name(), o.Release) && !strings.HasPrefix(k, loopKeyPrefix) {
 				out.Prerequisites = append(out.Prerequisites, restore(ob))
 				out.PrereqKeys = append(out.PrereqKeys, k)
 				out.Warnings = append(out.Warnings, fmt.Sprintf("%s %s is cluster-scoped with a fixed name; moved to prerequisites (shared by all instances)", ob.Kind(), ob.Name()))
@@ -186,10 +256,26 @@ func Assemble(in Input, o Options) (*Output, error) {
 		}
 
 		kept = append(kept, k)
-		idIn = append(idIn, idInput{key: k, kind: ob.Kind(), name: idName(ob.Name(), o.Release, o.ChartName)})
+
+		if !strings.HasPrefix(k, loopKeyPrefix) {
+			idIn = append(idIn, idInput{key: k, kind: ob.Kind(), name: idName(ob.Name(), o.Release, o.ChartName)})
+		}
 	}
 
 	ids := assignIDs(idIn)
+
+	used := map[string]bool{}
+	for _, id := range ids {
+		used[id] = true
+	}
+
+	for i := range loops {
+		loops[i].v = iteratorName(strings.Split(loops[i].path, "."), used)
+	}
+
+	for k, id := range collectionIDs(loops, objs, used) {
+		ids[k] = id
+	}
 
 	var final, excluded []string
 
@@ -205,6 +291,10 @@ func Assemble(in Input, o Options) (*Output, error) {
 		}
 
 		final = append(final, k)
+	}
+
+	for _, id := range out.excludedIDs {
+		matched[id] = true
 	}
 
 	for _, x := range o.Exclude {
@@ -286,6 +376,20 @@ func Assemble(in Input, o Options) (*Output, error) {
 				}
 
 				add(t.Key, t.Path, &edit{whole: expr, owner: p, isTernary: true})
+			}
+		}
+	}
+
+	for _, li := range loops {
+		es, reason := loopEdits(li)
+		if reason != "" {
+			out.Demote[li.path] = reason
+			continue
+		}
+
+		for k, list := range es {
+			for _, e := range list {
+				add(k, e.path, e)
 			}
 		}
 	}
@@ -402,12 +506,24 @@ func Assemble(in Input, o Options) (*Output, error) {
 
 		res := map[string]any{"id": id, "template": v}
 
+		readyRef := id
+
+		for _, li := range loops {
+			for j, pos := range li.l.Positions {
+				if k == loopKey(li.path, j) {
+					res["forEach"] = []any{map[string]any{li.v: "${" + li.ref + "}"}}
+					readyRef = "each"
+					out.Collections[id] = Collection{List: li.path, Var: li.v, Position: pos}
+				}
+			}
+		}
+
 		if g := gates[k]; len(g) > 0 {
 			sort.Strings(g)
 			res["includeWhen"] = toAny(g)
 		}
 
-		if rw := readyWhen(ob.Kind(), id); rw != "" {
+		if rw := readyWhen(ob.Kind(), readyRef); rw != "" {
 			res["readyWhen"] = []any{rw}
 		}
 
@@ -428,7 +544,7 @@ func Assemble(in Input, o Options) (*Output, error) {
 			continue
 		}
 
-		f := Field{Path: r.Candidate.Path, Type: schemaType(r.Candidate), Default: r.Candidate.Default, Origin: "value"}
+		f := Field{Path: r.Candidate.Path, Type: schemaType(r.Candidate), Default: r.Candidate.Default, Origin: "value", Description: in.Descriptions[p]}
 
 		if in.UserSecrets[p] {
 			f.Default, f.Required = nil, true
@@ -437,6 +553,32 @@ func Assemble(in Input, o Options) (*Output, error) {
 		for _, t := range r.Targets {
 			if id := out.IDs[t.Key]; id != "" {
 				f.Targets = append(f.Targets, id+"."+t.Path.String())
+			}
+		}
+
+		if r.Loop != nil {
+			li := loopInfo{path: p, ref: refs[p], l: r.Loop, r: r}
+			for _, x := range loops {
+				if x.path == p {
+					li = x
+				}
+			}
+
+			typ, markers, elem, reason := listSchema(li)
+			if reason != "" {
+				out.Demote[p] = reason
+				continue
+			}
+
+			f.Type, f.Markers = typ, markers
+			f.Targets = append(f.Targets, loopTargets(li, out.IDs)...)
+
+			if elem != nil {
+				if out.Types == nil {
+					out.Types = map[string]any{}
+				}
+
+				out.Types[strings.TrimPrefix(typ, "[]")] = elem
 			}
 		}
 
@@ -476,6 +618,10 @@ func Assemble(in Input, o Options) (*Output, error) {
 			},
 			"resources": resources,
 		},
+	}
+
+	if len(out.Types) > 0 {
+		out.RGD["spec"].(map[string]any)["schema"].(map[string]any)["types"] = out.Types
 	}
 
 	return out, nil
@@ -591,10 +737,9 @@ type genEdit struct {
 var alnum = regexp.MustCompile(`^[A-Za-z0-9]+$`)
 
 // generatedEdit replaces a value the chart generates at render time. In Secrets it
-// always becomes a required input: kro's random.seededString is deterministic from a
-// public seed (the instance UID) and repeats after 8 characters in kro v0.9.4, so it
-// must never produce secrets. Elsewhere (e.g. random name suffixes) an
-// alphanumeric run becomes random.seededString per instance.
+// always becomes a required input: kro's random.seededString is deterministic by
+// design (seeded by the instance UID), which suits names but not secrets. Elsewhere
+// (e.g. random name suffixes) an alphanumeric run becomes random.seededString.
 func generatedEdit(key, id string, p manifest.Path, s1 string, base2 *probe.View, secret bool) (genEdit, bool) {
 	var s2 string
 
@@ -721,6 +866,12 @@ func marker(f Field) string {
 		ms = append(ms, "immutable=true")
 	}
 
+	ms = append(ms, f.Markers...)
+
+	if f.Description != "" {
+		ms = append(ms, "description="+markerString(f.Description))
+	}
+
 	if len(ms) == 0 {
 		return f.Type
 	}
@@ -728,15 +879,29 @@ func marker(f Field) string {
 	return f.Type + " | " + strings.Join(ms, " ")
 }
 
+// quoted renders a string marker value the way kro's marker parser reads it back.
+func quoted(s string) string {
+	b := jsonString(s)
+	b = strings.ReplaceAll(b, `\`, `\\`)
+	b = strings.ReplaceAll(b, `"`, `\"`)
+
+	return `"` + b + `"`
+}
+
+// markerString quotes a plain-text marker value (description): kro unescapes \" and
+// \\ once and does not JSON-decode it (unlike default).
+func markerString(s string) string {
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	s = strings.ReplaceAll(s, `"`, `\"`)
+
+	return `"` + s + `"`
+}
+
 func defaultMarker(f Field) string {
 
 	switch t := f.Default.(type) {
 	case string:
-		b := jsonString(t)
-		b = strings.ReplaceAll(b, `\`, `\\`)
-		b = strings.ReplaceAll(b, `"`, `\"`)
-
-		return `default="` + b + `"`
+		return "default=" + quoted(t)
 	case bool:
 		return fmt.Sprintf("default=%t", t)
 	case float64:

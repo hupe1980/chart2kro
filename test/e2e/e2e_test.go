@@ -81,7 +81,7 @@ func apply(t *testing.T, name string) *chart2kro.Result {
 }
 
 func TestFixturesBecomeActive(t *testing.T) {
-	for _, name := range []string{"simple", "features", "with-database", "with-hooks", "with-subchart"} {
+	for _, name := range []string{"simple", "features", "with-database", "with-hooks", "with-subchart", "loops"} {
 		t.Run(name, func(t *testing.T) { apply(t, name) })
 	}
 }
@@ -150,4 +150,30 @@ func TestMain(m *testing.M) {
 	}
 
 	os.Exit(m.Run())
+}
+
+// Collections: one ConfigMap per tenant, created and removed by kro.
+func TestCollectionInstance(t *testing.T) {
+	apply(t, "loops")
+
+	ns := fmt.Sprintf("e2e-loops-%d", time.Now().Unix())
+	kubectl(t, "", "create", "namespace", ns)
+	t.Cleanup(func() { _ = exec.Command("kubectl", "delete", "namespace", ns, "--wait=false").Run() })
+
+	kubectl(t, `apiVersion: kro.run/v1alpha1
+kind: Loops
+metadata:
+  name: three
+  namespace: `+ns+`
+spec:
+  tenants:
+    - {name: a, quota: "1", tier: gold}
+    - {name: b, quota: "2", tier: free}
+    - {name: c, quota: "3", tier: free}
+`, "apply", "-f", "-")
+
+	eventually(t, "three tenant ConfigMaps", 3*time.Minute, func() (bool, string) {
+		out, _ := exec.Command("kubectl", "get", "configmap", "-n", ns, "-l", "tier", "-o", "jsonpath={.items[*].metadata.name}").CombinedOutput()
+		return strings.Fields(string(out)) != nil && len(strings.Fields(string(out))) == 3, string(out)
+	})
 }

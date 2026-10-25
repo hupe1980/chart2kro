@@ -46,9 +46,12 @@ Each probe render is compared with the baseline:
 | A boolean adds or removes whole objects | `includeWhen: ${schema.spec.enabled}`. Fields inside those objects are probed too |
 | A boolean switches a field between two values | `${schema.spec.flag ? "Always" : "IfNotPresent"}` |
 | A list or map passed through whole | `${schema.spec.nodeSelector}` |
+| A list whose `range` loop emits objects | A collection: `forEach: [{tenant: ${schema.spec.tenants}}]`, entry fields as `${tenant.name}`, one resource per document of the loop body |
 | Fields appear or disappear, or the value is transformed (`upper`, `trunc`, arithmetic) | **frozen**, with the reason |
 
 Objects are matched by template and position, never by name, because names often depend on values.
+
+**Loops.** For a list that adds or removes objects, the chart is rendered with 0, 1, 2 and 3 copies of its first entry. A template file that then emits exactly *k* objects per entry is a loop. Each field of the first entry is probed like a value, and differences between identical copies must be the loop index. The list's schema gets an element type listing exactly the default entry's fields (required, so unknown fields are rejected) and a unique key on the field that names the objects.
 
 ## 4. Assemble
 
@@ -56,7 +59,7 @@ The RGD follows kro's rules:
 
 - lowerCamelCase resource ids;
 - `readyWhen` on workloads by resource id;
-- a schema typed and defaulted from the merged values;
+- a schema typed and defaulted from the merged values, with descriptions from `values.yaml` comments (helm-docs `# --`, bitnami `## @param`, or a plain comment above the key), so `kubectl explain` documents every input;
 - literal `${` in chart content escaped;
 - `immutable=true` on inputs that land in fields Kubernetes does not allow to change (selectors, volume claim templates, …);
 - CRDs and fixed-name cluster-scoped objects moved to `prerequisites.yaml`;
@@ -92,8 +95,9 @@ Each instantiation is compared with Helm's render for the same values. Only thes
 1. the namespace field (kro places objects in the instance's namespace);
 2. the isolation labels;
 3. `checksum/*` annotations;
-4. generated values;
-5. objects moved to prerequisites or dropped.
+4. kro's `kro.run/collection-index` label on collection objects;
+5. generated values;
+6. objects moved to prerequisites or dropped.
 
 A value whose instantiation differs from Helm is frozen, with the first difference as the reason, and the RGD is assembled again. This always ends: with nothing exposed, the RGD is the defaults, which match by construction.
 

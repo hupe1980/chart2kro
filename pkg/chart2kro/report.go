@@ -48,6 +48,8 @@ type ValueReport struct {
 	Type    string   `json:"type,omitempty"` // SimpleSchema type when exposed
 	Default any      `json:"default,omitempty"`
 	Targets []string `json:"targets,omitempty"` // "<resourceId>.<field path>"
+	// Description comes from the chart's values.yaml comments.
+	Description string `json:"description,omitempty"`
 }
 
 // ResourceReport is one resource of the RGD.
@@ -57,6 +59,7 @@ type ResourceReport struct {
 	Source      string   `json:"source"`
 	IncludeWhen []string `json:"includeWhen,omitempty"`
 	Isolated    bool     `json:"isolated,omitempty"`
+	ForEach     string   `json:"forEach,omitempty"` // iterated list (collections only)
 }
 
 // ObjectRef names an object moved to prerequisites.

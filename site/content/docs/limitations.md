@@ -14,7 +14,8 @@ What chart2kro cannot translate, and what it does instead. Values affected by th
 |---|---|---|
 | A value that adds or removes **fields inside** an object (`{% raw %}{{ if .Values.x }}foo: bar{{ end }}{% endraw %}`, `{% raw %}{{- with .Values.annotations }}{% endraw %}`) | Frozen (`changes-structure` / `toggles-fields`) | kro cannot omit a field conditionally without its alpha `omit()` feature |
 | A value transformed by a template function (`upper`, `trunc`, `printf` with several values, arithmetic) | Frozen (`transformed`) | CEL has no faithful equivalent for every sprig function; guessing would deploy something different |
-| A value that changes the number of list items (`range` over a value) | Frozen | kro's `forEach` is not used yet |
+| A `range` loop that emits one or more objects per list entry | Becomes a kro collection (`forEach`): the list is an input, entries are typed and unique by name | Loops over maps, nested loops, conditional loop bodies and loop files with other documents stay frozen with a reason |
+| A `range` loop that emits fields inside an object (env vars, ports) | Frozen (`changes-structure`) | kro cannot vary the number of fields; set the list with `-f` |
 | A value that adds or removes objects but is not a boolean | Frozen (`adds-or-removes-objects`) | Only booleans are enumerated exhaustively |
 | Values that matter only together with another non-default value | Classified relative to the defaults | Each value is probed with the others at their defaults |
 | Release names that contain the chart name | Instances are always named `<instance>-<chart>` | The fullname helper's short form depends on the name; the result is deterministic and unique |
@@ -25,6 +26,7 @@ What chart2kro cannot translate, and what it does instead. Values affected by th
 | Generated secrets (`randAlphaNum` and friends) | Become required inputs (`chart2kroGenerated.*`) | kro's `random.seededString` is derived from the instance UID, which is not secret |
 | Changing a field to `immutable` on an existing API | Takes effect only when kro next updates the CRD | kro v0.9.4 skips CRD updates that change only validation rules; `diff` reports it |
 | `lookup` | Renders empty, as with `helm template` | No cluster access |
+| Control characters in rendered strings (e.g. `\x7f`) | kro rejects the RGD (exit 7) | kro's template parser accepts only YAML's printable characters |
 | Jobs | Reconciled by kro, not run once. A warning is printed for Jobs with `ttlSecondsAfterFinished` | kro recreates a Job that Kubernetes deleted, so it runs again |
 | Kubernetes versions | Rendering and validation use the embedded catalogs for 1.35, 1.36 and 1.37 (`--kube-version`) | Validation is offline; newer versions need a chart2kro release |
 | Very large charts | Exit 5 above 1 MiB, naming the largest resources | The API server limits object size; use `--exclude`, `--exclude-subchart` or a smaller `--expose` |

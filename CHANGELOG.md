@@ -4,6 +4,19 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-25
+
+### Added
+
+- **Collections:** a `range` loop that emits objects per list entry becomes a kro `forEach` collection. The list is an input with a typed element schema (unknown fields rejected, entries unique by name) and is verified against Helm like any other value. Loops that cannot be converted stay frozen with a reason.
+- **Value descriptions:** `values.yaml` comments (helm-docs `# --`, Bitnami `## @param`, plain comments) document the generated API (`kubectl explain`), the report and `inspect`.
+- **GitHub Action:** `uses: hupe1980/chart2kro@v0.2.0` fails a pull request when the committed output is stale or the API change breaks existing instances, and writes a job summary.
+- **Report:** value kind `collection`, `resources[].forEach` and `values[].description` (additive).
+
+### Fixed
+
+- `instance`: values inside lists that equal their defaults are no longer reported as changed.
+
 ## [0.1.1] - 2026-10-25
 
 ### Fixed
@@ -51,6 +64,7 @@ A rewrite: v0.0.x output was rejected by kro. Regenerate every RGD.
 - Helm SDK v4, including dependency `condition`/`tags` and `--kube-version` capabilities.
 - YAML output keeps empty maps, empty list items and nulls.
 
-[Unreleased]: https://github.com/hupe1980/chart2kro/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/hupe1980/chart2kro/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/hupe1980/chart2kro/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/hupe1980/chart2kro/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/hupe1980/chart2kro/compare/v0.0.2...v0.1.0

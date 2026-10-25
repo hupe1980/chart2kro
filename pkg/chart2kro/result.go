@@ -95,7 +95,7 @@ func (c *conversion) report(out *rgd.Output, results []probe.Result, witnesses i
 	}
 
 	for _, r := range results {
-		vr := ValueReport{Path: r.Candidate.Dotted(), Outcome: string(r.Outcome), Reason: r.Reason, Detail: r.Detail}
+		vr := ValueReport{Path: r.Candidate.Dotted(), Outcome: string(r.Outcome), Reason: r.Reason, Detail: r.Detail, Description: c.descriptions[r.Candidate.Dotted()]}
 
 		switch r.Outcome {
 		case probe.Exposed:
@@ -138,6 +138,10 @@ func (c *conversion) report(out *rgd.Output, results []probe.Result, witnesses i
 
 		rr := ResourceReport{ID: id, Kind: fmt.Sprint(t["kind"]), Source: sourceOf(out.Keys[id]), Isolated: isolated[id]}
 
+		if col, ok := out.Collections[id]; ok {
+			rr.Source, rr.ForEach = col.Position.Source, "spec."+col.List
+		}
+
 		if iw, ok := res["includeWhen"].([]any); ok {
 			for _, e := range iw {
 				rr.IncludeWhen = append(rr.IncludeWhen, fmt.Sprint(e))
@@ -171,6 +175,10 @@ func (c *conversion) report(out *rgd.Output, results []probe.Result, witnesses i
 }
 
 func kindOf(r probe.Result) string {
+	if r.Loop != nil {
+		return "collection"
+	}
+
 	switch r.Candidate.Kind {
 	case probe.Bool:
 		return "conditional"

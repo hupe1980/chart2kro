@@ -1,0 +1,4 @@
+apiVersion: v2
+name: loops
+description: Fixture for range loops that emit objects (kro collections)
+version: 0.1.0

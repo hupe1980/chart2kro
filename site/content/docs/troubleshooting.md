@@ -51,6 +51,12 @@ Every value that is not exposed carries one of these codes (`inspect`, `report.j
 | `affects-only-dropped-objects` | unused | The value only changes hooks, excluded resources or prerequisites | Nothing; it has no effect on instances |
 | `user-secret` | frozen | The value is Secret data you supplied with `-f`/`--set`; it is never written into the RGD | `--expose` it to make it an instance input |
 | `unknown-kind` | frozen | The value enables a custom resource whose CRD is not available | Pass the CRD with `--crd` |
+| `range-over-map` | frozen | A loop over a map emits objects; kro collections iterate lists only | Make the value a list in the chart, or set it with `-f` |
+| `conditional-loop-body` | frozen | A loop emits objects only for some entries (`{% raw %}{{ if .enabled }}{% endraw %}` inside the loop) | Filter the list instead, or set it with `-f` |
+| `loop-shares-template` | frozen | The loop's template file also contains documents outside the loop | Move the loop into its own template file |
+| `nested-loop` | frozen | A loop inside the loop emits objects per inner element | Flatten the list, or set it with `-f` |
+| `loop-element-structure` | frozen | Entries differ in shape, an entry field changes something outside the loop, or every entry gets the same name | Give entries one shape and a name field; the detail names the field |
+| `loop-shape-unknown` | frozen | The list is empty by default and needs object entries, so their fields are unknown | Give it an example entry with `-f` |
 
 ## The RGD applied, but stays `Inactive`
 

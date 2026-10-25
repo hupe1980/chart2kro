@@ -26,7 +26,8 @@
       "default": "IfNotPresent",
       "targets": [
         "statefulSet.spec.template.spec.containers[0].imagePullPolicy"
-      ]
+      ],
+      "description": "Image pull policy"
     },
     {
       "path": "image.repository",
@@ -36,7 +37,8 @@
       "default": "redis",
       "targets": [
         "statefulSet.spec.template.spec.containers[0].image"
-      ]
+      ],
+      "description": "Container image repository"
     },
     {
       "path": "image.tag",
@@ -46,7 +48,8 @@
       "default": "7.4-alpine",
       "targets": [
         "statefulSet.spec.template.spec.containers[0].image"
-      ]
+      ],
+      "description": "Container image tag"
     },
     {
       "path": "maxmemoryPolicy",
@@ -56,19 +59,22 @@
       "default": "allkeys-lru",
       "targets": [
         "configMap.data.\"redis.conf\""
-      ]
+      ],
+      "description": "Eviction policy when maxmemory is reached"
     },
     {
       "path": "password",
       "outcome": "frozen",
       "reason": "adds-or-removes-objects",
-      "detail": "objects Secret (redis/templates/secret.yaml)"
+      "detail": "objects Secret (redis/templates/secret.yaml)",
+      "description": "Redis password; empty disables authentication"
     },
     {
       "path": "persistence.enabled",
       "outcome": "frozen",
       "reason": "toggles-fields",
-      "detail": "StatefulSet (redis/templates/statefulset.yaml) spec.template.spec.containers[0].volumeMounts"
+      "detail": "StatefulSet (redis/templates/statefulset.yaml) spec.template.spec.containers[0].volumeMounts",
+      "description": "Store data on a PersistentVolumeClaim"
     },
     {
       "path": "persistence.size",
@@ -78,13 +84,15 @@
       "default": "1Gi",
       "targets": [
         "statefulSet.spec.volumeClaimTemplates[0].spec.resources.requests.storage"
-      ]
+      ],
+      "description": "Size of the data volume (immutable after creation)"
     },
     {
       "path": "persistence.storageClass",
       "outcome": "frozen",
       "reason": "changes-structure",
-      "detail": "StatefulSet (redis/templates/statefulset.yaml) spec.volumeClaimTemplates[0].spec.storageClassName"
+      "detail": "StatefulSet (redis/templates/statefulset.yaml) spec.volumeClaimTemplates[0].spec.storageClassName",
+      "description": "StorageClass of the data volume; empty uses the cluster default"
     },
     {
       "path": "resources.limits.cpu",
@@ -135,7 +143,8 @@
       "targets": [
         "service.spec.ports[0].port",
         "serviceHeadless.spec.ports[0].port"
-      ]
+      ],
+      "description": "Redis port"
     },
     {
       "path": "service.type",
@@ -145,7 +154,8 @@
       "default": "ClusterIP",
       "targets": [
         "service.spec.type"
-      ]
+      ],
+      "description": "Service type"
     }
   ],
   "resources": [

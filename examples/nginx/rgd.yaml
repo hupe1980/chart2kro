@@ -113,10 +113,10 @@ spec:
     group: kro.run
     spec:
       image:
-        pullPolicy: string | default="IfNotPresent"
-        repository: string | default="nginx"
-        tag: string | default="1.27"
-      replicaCount: integer | default=1
+        pullPolicy: string | default="IfNotPresent" description="Image pull policy (Always, IfNotPresent or Never)"
+        repository: string | default="nginx" description="Container image repository"
+        tag: string | default="1.27" description="Container image tag"
+      replicaCount: integer | default=1 description="Number of nginx pods"
       resources:
         limits:
           cpu: string | default="250m"
@@ -125,5 +125,5 @@ spec:
           cpu: string | default="100m"
           memory: string | default="128Mi"
       service:
-        port: integer | default=80
-        type: string | default="ClusterIP"
+        port: integer | default=80 description="Service port"
+        type: string | default="ClusterIP" description="Service type (ClusterIP, NodePort or LoadBalancer)"

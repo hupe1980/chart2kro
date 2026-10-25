@@ -130,7 +130,7 @@ func Instance(ctx context.Context, o Options, in InstanceOptions) ([]byte, error
 			ErrConstraint, strings.Join(unexposed, "\n  "))
 	}
 
-	if err := checkTypes(set, exposed); err != nil {
+	if err := checkTypes(set, exposed, elementTypes(res.RGD)); err != nil {
 		return nil, err
 	}
 
@@ -168,11 +168,11 @@ func mergeValues(a, b map[string]any) map[string]any {
 
 // checkTypes reports values whose type does not match the exposed field's
 // SimpleSchema type: the API server would reject the instance.
-func checkTypes(set map[string]any, exposed map[string]ValueReport) error {
+func checkTypes(set map[string]any, exposed map[string]ValueReport, types map[string]map[string]string) error {
 	var bad []string
 
 	for _, p := range sortedKeys(set) {
-		if want := exposed[p].Type; want != "" && !hasType(set[p], want) {
+		if want := exposed[p].Type; want != "" && !hasType(set[p], want, types) {
 			bad = append(bad, fmt.Sprintf("%s: want %s, got %s", p, want, typeName(set[p])))
 		}
 	}
@@ -184,7 +184,29 @@ func checkTypes(set map[string]any, exposed map[string]ValueReport) error {
 	return nil
 }
 
-func hasType(v any, t string) bool {
+func hasType(v any, t string, types map[string]map[string]string) bool {
+	if fields, ok := types[strings.TrimPrefix(t, "[]")]; ok && strings.HasPrefix(t, "[]") {
+		l, ok := v.([]any)
+		if !ok {
+			return false
+		}
+
+		for _, x := range l {
+			m, ok := x.(map[string]any)
+			if !ok || len(m) != len(fields) {
+				return false
+			}
+
+			for k, ft := range fields {
+				if fv, ok := m[k]; !ok || !hasType(fv, ft, types) {
+					return false
+				}
+			}
+		}
+
+		return true
+	}
+
 	switch t {
 	case "boolean":
 		_, ok := v.(bool)
@@ -218,7 +240,7 @@ func hasType(v any, t string) bool {
 		}
 
 		for _, x := range l {
-			if !hasType(x, strings.TrimPrefix(t, "[]")) {
+			if !hasType(x, strings.TrimPrefix(t, "[]"), types) {
 				return false
 			}
 		}
@@ -276,4 +298,31 @@ func sortedKeys[V any](m map[string]V) []string {
 	sort.Strings(keys)
 
 	return keys
+}
+
+// elementTypes reads the element types of collection lists from an RGD:
+// type name → field → SimpleSchema type.
+func elementTypes(rgd []byte) map[string]map[string]string {
+	var m struct {
+		Spec struct {
+			Schema struct {
+				Types map[string]map[string]string `json:"types"`
+			} `json:"schema"`
+		} `json:"spec"`
+	}
+
+	if err := yamlUnmarshal(rgd, &m); err != nil {
+		return nil
+	}
+
+	out := map[string]map[string]string{}
+
+	for name, fields := range m.Spec.Schema.Types {
+		out[name] = map[string]string{}
+		for f, marker := range fields {
+			out[name][f] = strings.TrimSpace(strings.SplitN(marker, "|", 2)[0])
+		}
+	}
+
+	return out
 }

@@ -1,0 +1,11 @@
+{{- range .Values.tenants }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $.Release.Name }}-{{ .name }}
+  labels:
+    tier: {{ .tier }}
+data:
+  quota: {{ .quota | quote }}
+{{- end }}

@@ -1,0 +1,242 @@
+{
+  "schemaVersion": "chart2kro.io/report/v1",
+  "chart": {
+    "name": "loops",
+    "version": "0.1.0",
+    "source": "../../testdata/charts/loops"
+  },
+  "kind": "Loops",
+  "group": "kro.run",
+  "apiVersion": "v1alpha1",
+  "kubeVersion": "1.37",
+  "kroVersion": "v0.9.4",
+  "witnesses": 88,
+  "summary": {
+    "exposed": 8,
+    "frozen": 6,
+    "failed": 0,
+    "unused": 0
+  },
+  "values": [
+    {
+      "path": "credentials",
+      "outcome": "exposed",
+      "kind": "collection",
+      "type": "[]CredentialsEntry",
+      "default": [
+        {
+          "name": "db",
+          "password": "changeme"
+        }
+      ],
+      "targets": [
+        "credentialSecret.data.password",
+        "credentialSecret.metadata.name"
+      ],
+      "description": "Object list with secrets: one Secret per credential."
+    },
+    {
+      "path": "extraArgs",
+      "outcome": "frozen",
+      "reason": "changes-structure",
+      "detail": "Deployment (loops/templates/workloads.yaml) spec.template.spec.containers[0].args is absent or different at the default",
+      "description": "An empty list that feeds fields, not objects: not a loop."
+    },
+    {
+      "path": "extraQueues",
+      "outcome": "exposed",
+      "kind": "collection",
+      "type": "[]string",
+      "default": [],
+      "targets": [
+        "extraQueueConfigMap.metadata.name"
+      ],
+      "description": "Empty string list: converted with an example entry; loopImage is used only inside it."
+    },
+    {
+      "path": "groups",
+      "outcome": "frozen",
+      "reason": "nested-loop",
+      "detail": "entry field members emits objects per element"
+    },
+    {
+      "path": "loopImage",
+      "outcome": "exposed",
+      "kind": "reference",
+      "type": "string",
+      "default": "busybox:1.36",
+      "targets": [
+        "extraQueueConfigMap.data.image"
+      ]
+    },
+    {
+      "path": "profiles",
+      "outcome": "frozen",
+      "reason": "loop-shape-unknown",
+      "detail": "the default list is empty, so its entries' fields are unknown; give it an example entry with -f"
+    },
+    {
+      "path": "queues",
+      "outcome": "exposed",
+      "kind": "collection",
+      "type": "[]string",
+      "default": [
+        "orders"
+      ],
+      "targets": [
+        "queueConfigMap.data.queue",
+        "queueConfigMap.metadata.name",
+        "queueSecret.metadata.name",
+        "queueSecret.stringData.topic"
+      ],
+      "description": "String list, two documents per entry (ConfigMap + Secret)."
+    },
+    {
+      "path": "regions",
+      "outcome": "frozen",
+      "reason": "range-over-map",
+      "detail": "kro iterates lists only; objects ConfigMap (loops/templates/regions.yaml)",
+      "description": "Unsupported shapes, frozen with reasons."
+    },
+    {
+      "path": "teams",
+      "outcome": "frozen",
+      "reason": "conditional-loop-body",
+      "detail": "entry field enabled adds or removes objects"
+    },
+    {
+      "path": "tenants",
+      "outcome": "exposed",
+      "kind": "collection",
+      "type": "[]TenantsEntry",
+      "default": [
+        {
+          "name": "alpha",
+          "quota": "10",
+          "tier": "gold"
+        }
+      ],
+      "targets": [
+        "tenantConfigMap.data.quota",
+        "tenantConfigMap.metadata.labels.tier",
+        "tenantConfigMap.metadata.name"
+      ],
+      "description": "Object list: one ConfigMap per tenant, named by .name (collection, listMapKey=name)."
+    },
+    {
+      "path": "workers",
+      "outcome": "exposed",
+      "kind": "collection",
+      "type": "[]WorkersEntry",
+      "default": [
+        {
+          "size": 1
+        }
+      ],
+      "targets": [
+        "workerConfigMap.data.size",
+        "workerConfigMap.metadata.name"
+      ],
+      "description": "Object list named by the loop index."
+    },
+    {
+      "path": "workloads.apps",
+      "outcome": "exposed",
+      "kind": "collection",
+      "type": "[]WorkloadsAppsEntry",
+      "default": [
+        {
+          "name": "api",
+          "replicas": 1
+        }
+      ],
+      "targets": [
+        "appDeployment.metadata.name",
+        "appDeployment.spec.replicas",
+        "appDeployment.spec.selector.matchLabels.app",
+        "appDeployment.spec.template.metadata.labels.app"
+      ]
+    },
+    {
+      "path": "workloads.enabled",
+      "outcome": "exposed",
+      "kind": "conditional",
+      "type": "boolean",
+      "default": true
+    },
+    {
+      "path": "zones",
+      "outcome": "frozen",
+      "reason": "loop-shares-template",
+      "detail": "loops/templates/zones.yaml has documents outside the loop"
+    }
+  ],
+  "resources": [
+    {
+      "id": "credentialSecret",
+      "kind": "Secret",
+      "source": "loops/templates/credentials.yaml",
+      "forEach": "spec.credentials"
+    },
+    {
+      "id": "extraQueueConfigMap",
+      "kind": "ConfigMap",
+      "source": "loops/templates/extra-queues.yaml",
+      "forEach": "spec.extraQueues"
+    },
+    {
+      "id": "queueConfigMap",
+      "kind": "ConfigMap",
+      "source": "loops/templates/queues.yaml",
+      "forEach": "spec.queues"
+    },
+    {
+      "id": "queueSecret",
+      "kind": "Secret",
+      "source": "loops/templates/queues.yaml",
+      "forEach": "spec.queues"
+    },
+    {
+      "id": "tenantConfigMap",
+      "kind": "ConfigMap",
+      "source": "loops/templates/tenants.yaml",
+      "forEach": "spec.tenants"
+    },
+    {
+      "id": "workerConfigMap",
+      "kind": "ConfigMap",
+      "source": "loops/templates/workers.yaml",
+      "forEach": "spec.workers"
+    },
+    {
+      "id": "appDeployment",
+      "kind": "Deployment",
+      "source": "loops/templates/workloads.yaml",
+      "includeWhen": [
+        "${schema.spec.workloads.enabled}"
+      ],
+      "isolated": true,
+      "forEach": "spec.workloads.apps"
+    },
+    {
+      "id": "configMapOpsAna",
+      "kind": "ConfigMap",
+      "source": "loops/templates/groups.yaml"
+    },
+    {
+      "id": "configMapTeamCore",
+      "kind": "ConfigMap",
+      "source": "loops/templates/teams.yaml"
+    },
+    {
+      "id": "configMapZones",
+      "kind": "ConfigMap",
+      "source": "loops/templates/zones.yaml"
+    },
+    {
+      "id": "configMapZoneEu",
+      "kind": "ConfigMap",
+      "source": "loops/templates/zones.yaml"
+    }
+  ]
+}

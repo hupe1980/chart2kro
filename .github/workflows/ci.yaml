@@ -63,10 +63,17 @@ jobs:
           go-version-file: go.mod
           check-latest: true
       - run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+      - name: Action scripts (shellcheck)
+        run: shellcheck action/*.sh
       - name: Actions are pinned by commit SHA
         run: |
-          if grep -hE '^\s+(- )?uses: ' .github/workflows/*.yaml | grep -vE '@[0-9a-f]{40} # v|uses: \./'; then
+          if grep -hE '^\s+(- )?uses: ' .github/workflows/*.yaml action.yml | grep -vE '@[0-9a-f]{40} # v|uses: \./'; then
             echo "::error::pin every action to a full commit SHA with a '# vX.Y.Z' comment"; exit 1
+          fi
+      - name: No internal planning ids in code or docs
+        run: |
+          if git ls-files | xargs grep -InE '\b(FR|SC)-[0-9]{3}[a-z]?\b|\bD-[0-9]{2}\b|\bF-[0-9]{2}\b|spec 0[0-9]{2}' -- ; then
+            echo "::error::remove references to internal requirements, decisions or specs"; exit 1
           fi
       - name: No references to removed commands or local planning folders
         run: |
@@ -79,6 +86,22 @@ jobs:
           distribution: goreleaser
           version: "v2.19.0"
           args: check
+
+  action:
+    name: GitHub Action (self-test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - id: c2k
+        uses: ./
+        with:
+          chart: examples/nginx/chart
+          output-dir: examples/nginx
+      - name: Outputs
+        env:
+          STALE: ${{ steps.c2k.outputs.stale }}
+          BREAKING: ${{ steps.c2k.outputs.breaking }}
+        run: test "$STALE" = false && test "$BREAKING" = false
 
   e2e:
     name: E2E (kind + kro ${{ matrix.kro }})

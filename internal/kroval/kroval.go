@@ -20,6 +20,7 @@ import (
 	structuralschema "k8s.io/apiextensions-apiserver/pkg/apiserver/schema"
 	"k8s.io/apiextensions-apiserver/pkg/apiserver/schema/cel"
 	structuraldefaulting "k8s.io/apiextensions-apiserver/pkg/apiserver/schema/defaulting"
+	"k8s.io/apiextensions-apiserver/pkg/apiserver/schema/listtype"
 	structuralpruning "k8s.io/apiextensions-apiserver/pkg/apiserver/schema/pruning"
 	apiservervalidation "k8s.io/apiextensions-apiserver/pkg/apiserver/validation"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -261,6 +262,8 @@ func (v *CRDValidator) Validate(ctx context.Context, obj map[string]any) (unknow
 	unknown = structuralpruning.PruneWithOptions(obj, v.structural, true,
 		structuralschema.UnknownFieldPathOptions{TrackUnknownFieldPaths: true})
 	errs = apiservervalidation.ValidateCustomResource(nil, obj, v.validator)
+	// List types (x-kubernetes-list-type set/map): duplicates are rejected, as by the API server.
+	errs = append(errs, listtype.ValidateListSetsAndMaps(nil, v.structural, obj)...)
 
 	if v.cel != nil {
 		celErrs, _ := v.cel.Validate(ctx, nil, v.structural, obj, nil, celconfig.RuntimeCELCostBudget)

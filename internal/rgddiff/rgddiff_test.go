@@ -99,3 +99,19 @@ func TestParseFieldMarkers(t *testing.T) {
 	require.Equal(t, `["x", "y"]`, m["default"])
 	require.Equal(t, "true", m["required"])
 }
+
+func TestElementTypeChanges(t *testing.T) {
+	withTypes := func(fields map[string]any) map[string]any {
+		r := rgd("App", map[string]any{"tenants": "[]TenantsEntry | default=[]"})
+		r["spec"].(map[string]any)["schema"].(map[string]any)["types"] = map[string]any{"TenantsEntry": fields}
+
+		return r
+	}
+
+	old := withTypes(map[string]any{"name": "string | required=true", "quota": "string | required=true"})
+	updated := withTypes(map[string]any{"name": "string | required=true", "tier": "string | required=true"})
+
+	s := severities(Compare(old, updated))
+	require.Equal(t, Breaking, s["spec.schema.types.TenantsEntry.quota"], "removed element field")
+	require.Equal(t, Breaking, s["spec.schema.types.TenantsEntry.tier"], "new required element field")
+}

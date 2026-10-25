@@ -1,0 +1,153 @@
+apiVersion: kro.run/v1alpha1
+kind: ResourceGraphDefinition
+metadata:
+  name: loops
+  annotations:
+    chart2kro.io/chart: loops-0.1.0
+  labels:
+    app.kubernetes.io/managed-by: chart2kro
+spec:
+  resources:
+    - id: credentialSecret
+      forEach:
+        - credential: ${schema.spec.credentials}
+      template:
+        apiVersion: v1
+        kind: Secret
+        metadata:
+          name: ${schema.metadata.name}-cred-${credential.name}
+        stringData:
+          password: ${credential.password}
+        type: Opaque
+    - id: extraQueueConfigMap
+      forEach:
+        - extraQueue: ${schema.spec.extraQueues}
+      template:
+        apiVersion: v1
+        kind: ConfigMap
+        metadata:
+          name: ${schema.metadata.name}-extra-${extraQueue}
+        data:
+          image: ${schema.spec.loopImage}
+    - id: queueConfigMap
+      forEach:
+        - queue: ${schema.spec.queues}
+      template:
+        apiVersion: v1
+        kind: ConfigMap
+        metadata:
+          name: ${schema.metadata.name}-queue-${queue}
+        data:
+          queue: ${queue}
+    - id: queueSecret
+      forEach:
+        - queue: ${schema.spec.queues}
+      template:
+        apiVersion: v1
+        kind: Secret
+        metadata:
+          name: ${schema.metadata.name}-queue-${queue}
+        stringData:
+          topic: topic-${queue}
+    - id: tenantConfigMap
+      forEach:
+        - tenant: ${schema.spec.tenants}
+      template:
+        apiVersion: v1
+        kind: ConfigMap
+        metadata:
+          name: ${schema.metadata.name}-${tenant.name}
+          labels:
+            tier: ${tenant.tier}
+        data:
+          quota: ${tenant.quota}
+    - id: workerConfigMap
+      forEach:
+        - worker: ${schema.spec.workers}
+      template:
+        apiVersion: v1
+        kind: ConfigMap
+        metadata:
+          name: ${schema.metadata.name}-worker-${string(schema.spec.workers.indexOf(worker))}
+        data:
+          size: ${string(worker.size)}
+    - id: appDeployment
+      forEach:
+        - app: ${schema.spec.workloads.apps}
+      includeWhen:
+        - ${schema.spec.workloads.enabled}
+      readyWhen:
+        - ${each.status.?availableReplicas.orValue(0) == each.spec.?replicas.orValue(1)}
+      template:
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: ${schema.metadata.name}-${app.name}
+        spec:
+          replicas: ${app.replicas}
+          selector:
+            matchLabels:
+              app: ${app.name}
+              app.kubernetes.io/instance: ${schema.metadata.name}
+          template:
+            metadata:
+              labels:
+                app: ${app.name}
+                app.kubernetes.io/instance: ${schema.metadata.name}
+            spec:
+              containers:
+                - name: app
+                  image: nginx:1.27
+    - id: configMapOpsAna
+      template:
+        apiVersion: v1
+        kind: ConfigMap
+        metadata:
+          name: ${schema.metadata.name}-ops-ana
+    - id: configMapTeamCore
+      template:
+        apiVersion: v1
+        kind: ConfigMap
+        metadata:
+          name: ${schema.metadata.name}-team-core
+    - id: configMapZones
+      template:
+        apiVersion: v1
+        kind: ConfigMap
+        metadata:
+          name: ${schema.metadata.name}-zones
+        data:
+          static: "yes"
+    - id: configMapZoneEu
+      template:
+        apiVersion: v1
+        kind: ConfigMap
+        metadata:
+          name: ${schema.metadata.name}-zone-eu
+  schema:
+    apiVersion: v1alpha1
+    kind: Loops
+    group: kro.run
+    spec:
+      credentials: '[]CredentialsEntry | default=[{"name":"db","password":"changeme"}] listType=map listMapKey=name description="Object list with secrets: one Secret per credential."'
+      extraQueues: '[]string | default=[] listType=set description="Empty string list: converted with an example entry; loopImage is used only inside it."'
+      loopImage: string | default="busybox:1.36"
+      queues: '[]string | default=["orders"] listType=set description="String list, two documents per entry (ConfigMap + Secret)."'
+      tenants: '[]TenantsEntry | default=[{"name":"alpha","quota":"10","tier":"gold"}] listType=map listMapKey=name description="Object list: one ConfigMap per tenant, named by .name (collection, listMapKey=name)."'
+      workers: '[]WorkersEntry | default=[{"size":1}] listType=set description="Object list named by the loop index."'
+      workloads:
+        apps: '[]WorkloadsAppsEntry | default=[{"name":"api","replicas":1}] listType=map listMapKey=name'
+        enabled: boolean | default=true
+    types:
+      CredentialsEntry:
+        name: string | required=true
+        password: string | required=true
+      TenantsEntry:
+        name: string | required=true
+        quota: string | required=true
+        tier: string | required=true
+      WorkersEntry:
+        size: integer | required=true
+      WorkloadsAppsEntry:
+        name: string | required=true
+        replicas: integer | required=true

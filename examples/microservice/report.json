@@ -22,7 +22,8 @@
       "path": "autoscaling.enabled",
       "outcome": "frozen",
       "reason": "toggles-fields",
-      "detail": "Deployment (microservice/templates/deployment.yaml) spec.replicas"
+      "detail": "Deployment (microservice/templates/deployment.yaml) spec.replicas",
+      "description": "Create a HorizontalPodAutoscaler"
     },
     {
       "path": "autoscaling.maxReplicas",
@@ -32,7 +33,8 @@
       "default": 10,
       "targets": [
         "horizontalPodAutoscaler.spec.maxReplicas"
-      ]
+      ],
+      "description": "Maximum number of pods"
     },
     {
       "path": "autoscaling.minReplicas",
@@ -42,7 +44,8 @@
       "default": 2,
       "targets": [
         "horizontalPodAutoscaler.spec.minReplicas"
-      ]
+      ],
+      "description": "Minimum number of pods"
     },
     {
       "path": "autoscaling.targetCPUUtilization",
@@ -52,7 +55,8 @@
       "default": 75,
       "targets": [
         "horizontalPodAutoscaler.spec.metrics[0].resource.target.averageUtilization"
-      ]
+      ],
+      "description": "Target average CPU utilization (percent)"
     },
     {
       "path": "env.APP_PORT",
@@ -82,7 +86,8 @@
       "default": "IfNotPresent",
       "targets": [
         "deployment.spec.template.spec.containers[0].imagePullPolicy"
-      ]
+      ],
+      "description": "Image pull policy"
     },
     {
       "path": "image.repository",
@@ -92,7 +97,8 @@
       "default": "myorg/api-server",
       "targets": [
         "deployment.spec.template.spec.containers[0].image"
-      ]
+      ],
+      "description": "Container image repository"
     },
     {
       "path": "image.tag",
@@ -102,7 +108,8 @@
       "default": "1.0.0",
       "targets": [
         "deployment.spec.template.spec.containers[0].image"
-      ]
+      ],
+      "description": "Container image tag"
     },
     {
       "path": "ingress.className",
@@ -112,14 +119,16 @@
       "default": "nginx",
       "targets": [
         "ingress.spec.ingressClassName"
-      ]
+      ],
+      "description": "IngressClass to use"
     },
     {
       "path": "ingress.enabled",
       "outcome": "exposed",
       "kind": "conditional",
       "type": "boolean",
-      "default": true
+      "default": true,
+      "description": "Create an Ingress"
     },
     {
       "path": "ingress.host",
@@ -129,17 +138,20 @@
       "default": "api.example.com",
       "targets": [
         "ingress.spec.rules[0].host"
-      ]
+      ],
+      "description": "Host name routed to the service"
     },
     {
       "path": "ingress.tls",
       "outcome": "frozen",
       "reason": "toggles-fields",
-      "detail": "Ingress (microservice/templates/ingress.yaml) spec.tls"
+      "detail": "Ingress (microservice/templates/ingress.yaml) spec.tls",
+      "description": "Terminate TLS at the Ingress"
     },
     {
       "path": "replicaCount",
-      "outcome": "unused"
+      "outcome": "unused",
+      "description": "Number of pods when autoscaling is disabled"
     },
     {
       "path": "resources.limits.cpu",
@@ -187,7 +199,8 @@
         "deployment.spec.template.spec.containers[0].ports[0].containerPort",
         "ingress.spec.rules[0].http.paths[0].backend.service.port.number",
         "service.spec.ports[0].port"
-      ]
+      ],
+      "description": "Port the service and container listen on"
     },
     {
       "path": "service.type",
@@ -197,7 +210,8 @@
       "default": "ClusterIP",
       "targets": [
         "service.spec.type"
-      ]
+      ],
+      "description": "Service type"
     }
   ],
   "resources": [

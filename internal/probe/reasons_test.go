@@ -18,29 +18,31 @@ func TestReasonCodesAreDocumented(t *testing.T) {
 	doc, err := os.ReadFile("../../site/content/docs/troubleshooting.md")
 	require.NoError(t, err)
 
-	f, err := parser.ParseFile(token.NewFileSet(), "classify.go", nil, 0)
-	require.NoError(t, err)
-
 	n := 0
 
-	ast.Inspect(f, func(node ast.Node) bool {
-		vs, ok := node.(*ast.ValueSpec)
-		if !ok || len(vs.Values) != 1 || !strings.HasPrefix(vs.Names[0].Name, "Reason") {
+	for _, file := range []string{"classify.go", "loop.go"} {
+		f, err := parser.ParseFile(token.NewFileSet(), file, nil, 0)
+		require.NoError(t, err)
+
+		ast.Inspect(f, func(node ast.Node) bool {
+			vs, ok := node.(*ast.ValueSpec)
+			if !ok || len(vs.Values) != 1 || !strings.HasPrefix(vs.Names[0].Name, "Reason") {
+				return true
+			}
+
+			lit, ok := vs.Values[0].(*ast.BasicLit)
+			if !ok {
+				return true
+			}
+
+			code, _ := strconv.Unquote(lit.Value)
+			require.Contains(t, string(doc), "`"+code+"`", vs.Names[0].Name)
+
+			n++
+
 			return true
-		}
-
-		lit, ok := vs.Values[0].(*ast.BasicLit)
-		if !ok {
-			return true
-		}
-
-		code, _ := strconv.Unquote(lit.Value)
-		require.Contains(t, string(doc), "`"+code+"`", vs.Names[0].Name)
-
-		n++
-
-		return true
-	})
+		})
+	}
 
 	require.Positive(t, n)
 }
