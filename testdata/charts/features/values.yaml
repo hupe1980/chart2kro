@@ -1,0 +1,19 @@
+replicaCount: 2
+image:
+  repository: ghcr.io/stefanprodan/podinfo
+  tag: "6.15.0"
+pullAlways: false          # bool → CEL ternary
+ingress:
+  enabled: false           # bool → includeWhen on an object
+  host: example.local
+nodeSelector: {}           # empty map passed through → whole map
+extraArgs: []              # list passed through → whole list
+message: hello             # interpolated into a string
+shout: quiet               # transformed by `upper` → frozen
+my-key: dashed             # key needs CEL escaping
+"1st": x                   # key cannot be addressed → frozen
+port: 9898                 # number rendered as string → string()
+debug: false               # bool rendered into a string → string()
+credentials:
+  enabled: false           # a Secret that exists only behind a flag
+  username: app

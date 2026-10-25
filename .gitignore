@@ -37,7 +37,16 @@ dist/
 
 # Custom
 _prompts/
-BACKLOG*.md
-CONCEPT.md
 FINDINGS.md
 .DS_Store
+
+# Local working files
+/concepts/
+/specs/
+/.specify/
+/.claude/
+/CLAUDE.md
+.e2e-kubeconfig
+
+# Site build output
+/site/public/

@@ -1,124 +1,181 @@
-package chart2kro_test
+package chart2kro
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"errors"
+	"flag"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
-	"time"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/hupe1980/chart2kro/pkg/chart2kro"
 )
 
-func TestConvert_EmptyRef(t *testing.T) {
-	_, err := chart2kro.Convert(context.Background(), "")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "chart reference must not be empty")
-}
+var update = flag.Bool("update", false, "rewrite golden files")
 
-func TestConvert_NoOptions(t *testing.T) {
-	_, err := chart2kro.Convert(context.Background(), "nonexistent-chart")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "loading chart")
-}
+var fixtures = []string{"simple", "features", "with-database", "with-hooks", "with-subchart"}
 
-func TestConvert_InvalidChartRef(t *testing.T) {
-	_, err := chart2kro.Convert(context.Background(), "/nonexistent/path/to/chart")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "loading chart")
-}
+func convertFixture(t *testing.T, name string, o Options) *Result {
+	t.Helper()
 
-func TestConvert_LocalChart(t *testing.T) {
-	result, err := chart2kro.Convert(context.Background(), "../../testdata/charts/simple")
-	require.NoError(t, err)
-	require.NotNil(t, result)
+	o.Chart = filepath.Join("..", "..", "testdata", "charts", name)
 
-	assert.NotEmpty(t, result.YAML)
-	assert.NotNil(t, result.RGDMap)
-	assert.NotEmpty(t, result.ChartName)
-	assert.Greater(t, result.ResourceCount, 0)
-
-	yamlStr := string(result.YAML)
-	assert.Contains(t, yamlStr, "apiVersion: kro.run/v1alpha1")
-	assert.Contains(t, yamlStr, "kind: ResourceGraphDefinition")
-}
-
-func TestConvert_WithOptions(t *testing.T) {
-	result, err := chart2kro.Convert(context.Background(), "../../testdata/charts/simple",
-		chart2kro.WithReleaseName("test-release"),
-		chart2kro.WithNamespace("test-ns"),
-		chart2kro.WithTimeout(60*time.Second),
-	)
-	require.NoError(t, err)
-	require.NotNil(t, result)
-	assert.NotEmpty(t, result.YAML)
-}
-
-func TestConvert_IncludeAllValues(t *testing.T) {
-	resultDefault, err := chart2kro.Convert(context.Background(), "../../testdata/charts/simple")
+	res, err := Convert(context.Background(), o)
 	require.NoError(t, err)
 
-	resultAll, err := chart2kro.Convert(context.Background(), "../../testdata/charts/simple",
-		chart2kro.WithIncludeAllValues(),
-	)
-	require.NoError(t, err)
-
-	assert.GreaterOrEqual(t, resultAll.SchemaFieldCount, resultDefault.SchemaFieldCount)
+	return res
 }
 
-func TestConvert_ContextCancellation(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
+func TestGolden(t *testing.T) {
+	for _, name := range fixtures {
+		t.Run(name, func(t *testing.T) {
+			res := convertFixture(t, name, Options{})
+			rep, err := json.MarshalIndent(res.Report, "", "  ")
+			require.NoError(t, err)
 
-	_, err := chart2kro.Convert(ctx, "../../testdata/charts/simple")
-	require.Error(t, err)
+			files := map[string][]byte{"rgd.yaml": res.RGD, "instance.yaml": res.Instance, "report.json": append(rep, '\n')}
+			if len(res.Prerequisites) > 0 {
+				files["prerequisites.yaml"] = res.Prerequisites
+			}
+
+			dir := filepath.Join("..", "..", "testdata", "golden", name)
+
+			for f, got := range files {
+				path := filepath.Join(dir, f)
+
+				if *update {
+					require.NoError(t, os.MkdirAll(dir, 0o750))
+					require.NoError(t, os.WriteFile(path, got, 0o600))
+
+					continue
+				}
+
+				want, err := os.ReadFile(path)
+				require.NoError(t, err, "missing golden file; run go test ./pkg/chart2kro -update")
+				require.Equal(t, string(want), string(got), path)
+			}
+		})
+	}
 }
 
-func TestConvert_SchemaOverrides(t *testing.T) {
-	result, err := chart2kro.Convert(context.Background(), "../../testdata/charts/simple",
-		chart2kro.WithSchemaOverrides(map[string]chart2kro.SchemaOverride{
-			"replicaCount": {Type: "integer", Default: 5},
-		}),
-	)
-	require.NoError(t, err)
-	require.NotNil(t, result)
-	assert.NotEmpty(t, result.YAML)
+func TestDeterministic(t *testing.T) {
+	for _, name := range fixtures {
+		a := convertFixture(t, name, Options{})
+		b := convertFixture(t, name, Options{})
+		require.Equal(t, string(a.RGD), string(b.RGD), name)
+		require.Equal(t, string(a.Prerequisites), string(b.Prerequisites), name)
+		// No provenance or timestamps in the output: only the chart's name and version.
+		require.NotRegexp(t, `\d{4}-\d{2}-\d{2}T\d{2}:|chart2kro\.io/(version|commit|built|provenance)`, string(a.RGD), name)
+	}
 }
 
-func TestConvert_MultipleOptions(t *testing.T) {
-	result, err := chart2kro.Convert(context.Background(), "../../testdata/charts/simple",
-		chart2kro.WithReleaseName("multi"),
-		chart2kro.WithNamespace("staging"),
-		chart2kro.WithIncludeAllValues(),
-		chart2kro.WithTimeout(45*time.Second),
-	)
+// A secret the operator supplies must never become a default or appear in any output.
+func TestUserSecretNeverBaked(t *testing.T) {
+	const secret = "s3cr3t-Planted-Value"
+
+	res := convertFixture(t, "with-database", Options{Set: []string{"postgresql.auth.password=" + secret}})
+
+	rep, err := json.Marshal(res.Report)
 	require.NoError(t, err)
-	assert.NotNil(t, result)
-	assert.NotEmpty(t, result.YAML)
+
+	for _, b := range [][]byte{res.RGD, res.Prerequisites, res.Instance, rep} {
+		require.NotContains(t, string(b), secret)
+		require.NotContains(t, string(b), "czNjcjN0LVBsYW50ZWQtVmFsdWU") // base64 of the secret
+	}
 }
 
-func TestConvert_Defaults(t *testing.T) {
-	result, err := chart2kro.Convert(context.Background(), "../../testdata/charts/simple")
+// The same holds for Secrets that exist only behind a flag (regression: corpus, wordpress).
+func TestUserSecretInConditionalSecret(t *testing.T) {
+	const secret = "Planted-Conditional-Secret"
+
+	res := convertFixture(t, "features", Options{SetString: []string{"credentials.username=" + secret}})
+
+	rep, err := json.Marshal(res.Report)
 	require.NoError(t, err)
-	assert.NotNil(t, result)
+
+	for _, b := range [][]byte{res.RGD, res.Prerequisites, res.Instance, rep} {
+		require.NotContains(t, string(b), secret)
+	}
+
+	require.Contains(t, string(res.RGD), "username: string | required=true")
 }
 
-func TestResult_HasExpectedStructure(t *testing.T) {
-	result, err := chart2kro.Convert(context.Background(), "../../testdata/charts/simple")
+func TestExitCodes(t *testing.T) {
+	ctx := context.Background()
+
+	_, err := Convert(ctx, Options{Chart: "does-not-exist"})
+	require.Equal(t, 3, ExitCode(err))
+
+	_, err = Convert(ctx, Options{Chart: "../../testdata/charts/library"})
+	require.Equal(t, 3, ExitCode(err))
+
+	_, err = Convert(ctx, Options{Chart: "../../testdata/charts/simple", Kind: "not-a-kind"})
+	require.Equal(t, 2, ExitCode(err))
+
+	_, err = Convert(ctx, Options{Chart: "../../testdata/charts/simple", Expose: []string{"nope.*"}})
+	require.Equal(t, 5, ExitCode(err))
+
+	require.Equal(t, 1, ExitCode(errors.New("x")))
+	require.Equal(t, 0, ExitCode(nil))
+}
+
+func TestValidateRejectsAndAccepts(t *testing.T) {
+	res := convertFixture(t, "simple", Options{})
+	require.NoError(t, Validate(context.Background(), res.RGD, ValidateOptions{}))
+
+	bad := bytes.Replace(res.RGD, []byte("id: deployment"), []byte("id: my-deployment"), 1)
+	err := Validate(context.Background(), bad, ValidateOptions{})
+	require.Equal(t, 7, ExitCode(err))
+	require.True(t, strings.Contains(err.Error(), "lower camelCase"))
+}
+
+func TestDiffAgainstItself(t *testing.T) {
+	res := convertFixture(t, "simple", Options{})
+
+	d, err := Diff(res.RGD, res.RGD)
 	require.NoError(t, err)
+	require.False(t, d.Breaking())
 
-	apiVersion, ok := result.RGDMap["apiVersion"]
-	assert.True(t, ok, "RGDMap should have apiVersion")
-	assert.Equal(t, "kro.run/v1alpha1", apiVersion)
+	other := convertFixture(t, "simple", Options{Kind: "Other"})
+	d, err = Diff(res.RGD, other.RGD)
+	require.NoError(t, err)
+	require.True(t, d.Breaking())
+}
 
-	kind, ok := result.RGDMap["kind"]
-	assert.True(t, ok, "RGDMap should have kind")
-	assert.Equal(t, "ResourceGraphDefinition", kind)
+func TestInstanceFromValues(t *testing.T) {
+	dir := t.TempDir()
+	f := filepath.Join(dir, "release.yaml")
+	require.NoError(t, os.WriteFile(f, []byte("replicaCount: 3\nimage:\n  tag: \"1.27\"\n"), 0o600))
 
-	_, ok = result.RGDMap["metadata"]
-	assert.True(t, ok, "RGDMap should have metadata")
+	b, err := Instance(context.Background(), Options{Chart: "../../testdata/charts/simple"},
+		InstanceOptions{Name: "web", Namespace: "prod", ValueFiles: []string{f}})
+	require.NoError(t, err)
+	require.Contains(t, string(b), "replicaCount: 3")
+	require.Contains(t, string(b), `tag: "1.27"`)
+	require.NotContains(t, string(b), "repository") // unchanged values are not repeated
 
-	_, ok = result.RGDMap["spec"]
-	assert.True(t, ok, "RGDMap should have spec")
+	require.NoError(t, os.WriteFile(f, []byte("unknownValue: 1\n"), 0o600))
+	_, err = Instance(context.Background(), Options{Chart: "../../testdata/charts/simple"},
+		InstanceOptions{Name: "web", ValueFiles: []string{f}})
+	require.Equal(t, 5, ExitCode(err))
+}
+
+func TestDiffNeedsExactlyOneRGD(t *testing.T) {
+	one := []byte("apiVersion: kro.run/v1alpha1\nkind: ResourceGraphDefinition\nmetadata:\n  name: a\nspec: {}\n")
+	none := []byte("apiVersion: v1\nkind: Namespace\nmetadata:\n  name: x\n")
+	two := append(append(append([]byte{}, one...), "---\n"...), one...)
+
+	_, err := Diff(none, one)
+	require.Equal(t, 2, ExitCode(err))
+
+	_, err = Diff(two, one)
+	require.Equal(t, 2, ExitCode(err))
+	require.ErrorContains(t, err, "2 ResourceGraphDefinitions")
+
+	res, err := Diff(one, one)
+	require.NoError(t, err)
+	require.Equal(t, DiffSchema, res.SchemaVersion)
 }

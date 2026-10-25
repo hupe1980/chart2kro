@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+
+{% block body_class %}home{% endblock body_class %}
+
+{% block jsonld %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "name": "chart2kro",
+      "url": "{{ config.base_url }}/"
+    },
+    {
+      "@type": "SoftwareApplication",
+      "name": "chart2kro",
+      "applicationCategory": "DeveloperApplication",
+      "operatingSystem": "Linux, macOS, Windows",
+      "description": "{{ config.description }}",
+      "url": "{{ config.base_url }}/",
+      "downloadUrl": "{{ config.extra.repo }}/releases",
+      "codeRepository": "{{ config.extra.repo }}",
+      "license": "https://www.apache.org/licenses/LICENSE-2.0",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        {% for q in section.extra.faq %}
+        { "@type": "Question", "name": {{ q.q | json_encode() | safe }},
+          "acceptedAnswer": { "@type": "Answer", "text": {{ q.a | markdown(inline=true) | striptags | json_encode() | safe }} } }{% if not loop.last %},{% endif %}
+        {% endfor %}
+      ]
+    }
+  ]
+}
+</script>
+{% endblock jsonld %}
+
+{% block content %}
+<section class="hero">
+  <div class="wrap hero__grid">
+    <div>
+      <p class="eyebrow">Helm chart <span aria-hidden="true">→</span> kro ResourceGraphDefinition</p>
+      <h1>Turn Helm charts into <span class="grad">kro APIs you can trust</span></h1>
+      <p class="lead">{{ section.extra.lead }}</p>
+      <div class="cta">
+        <a class="btn btn--primary" href="{{ get_url(path='@/docs/getting-started.md') }}">Get started</a>
+        <a class="btn" href="{{ config.extra.repo }}" rel="noopener">View on GitHub</a>
+      </div>
+      <div class="install" data-copy-wrap>
+        <code>brew install hupe1980/tap/chart2kro</code>
+        <button type="button" class="copy" data-copy aria-label="Copy install command">Copy</button>
+      </div>
+      <p class="fine">Or <code>go install github.com/hupe1980/chart2kro/cmd/chart2kro@latest</code>. Single static binary; no Helm, kubectl or cluster needed to convert. Output runs on kro {{ config.extra.kro_min }} or newer.</p>
+    </div>
+    <figure class="term" aria-label="Example conversion output">
+      <div class="term__bar"><span></span><span></span><span></span></div>
+<pre class="term__body"><span class="p">$</span> chart2kro convert oci://ghcr.io/…/podinfo -o podinfo/
+<span class="ok">podinfo 6.15.0 → Podinfo.kro.run/v1alpha1</span>: 3 resources,
+  <b>29 exposed</b>, 33 frozen, 0 failed, 60 unused
+  (256 witnesses, kro {{ config.extra.kro_version }}, Kubernetes 1.37)
+  frozen: changes-structure             15
+  frozen: toggles-fields                 8
+  frozen: transformed                    6
+  frozen: unknown-kind                   4
+  unused: affects-only-dropped-objects  11
+<span class="p">$</span> kubectl apply -f podinfo/rgd.yaml
+<span class="p">$</span> kubectl apply -f podinfo/instance.yaml
+<span class="dim">podinfo.kro.run/podinfo created</span></pre>
+    </figure>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap narrow">
+    <h2>Porting a chart to kro by hand is guesswork</h2>
+    <p>A Helm chart is a template program: a value can end up in one field, in five, inside a string, behind a condition, or nowhere. Rewriting that as a kro <code>ResourceGraphDefinition</code> means deciding, value by value, what is safe to expose and how. chart2kro makes those decisions by experiment, checks each one with kro's own code, and tells you why it decided.</p>
+  </div>
+</section>
+
+<section class="wrap features" aria-labelledby="features-h">
+  <h2 id="features-h" class="center">What you get</h2>
+  <div class="grid3">
+    {% for f in section.extra.features %}
+    <article class="card">
+      <div class="card__icon" aria-hidden="true">{{ f.icon }}</div>
+      <h3>{{ f.title }}</h3>
+      <p>{{ f.text | markdown(inline=true) | safe }}</p>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="wrap steps" aria-labelledby="how-h">
+  <h2 id="how-h" class="center">How it works</h2>
+  <ol class="steps__list">
+    {% for s in section.extra.steps %}
+    <li class="step">
+      <span class="step__n" aria-hidden="true">{{ loop.index }}</span>
+      <h3>{{ s.title }}</h3>
+      <p>{{ s.text | markdown(inline=true) | safe }}</p>
+    </li>
+    {% endfor %}
+  </ol>
+  <p class="center"><a class="link" href="{{ get_url(path='@/docs/how-it-works.md') }}">Read how it works →</a></p>
+</section>
+
+<section class="wrap compare" aria-labelledby="cmp-h">
+  <h2 id="cmp-h" class="center">From <code>values.yaml</code> to an API</h2>
+  <div class="grid2">
+    <figure>
+      <figcaption>Your chart</figcaption>
+{{ section.extra.before | markdown | safe }}
+    </figure>
+    <figure>
+      <figcaption>The generated ResourceGraphDefinition</figcaption>
+{{ section.extra.after | markdown | safe }}
+    </figure>
+  </div>
+  <p class="center fine">Instances are named after themselves and isolated by an added selector label. Booleans that switch whole resources become <code>includeWhen</code>.</p>
+</section>
+
+<section class="wrap usecases" aria-labelledby="use-h">
+  <h2 id="use-h" class="center">Built for platform teams</h2>
+  <div class="grid3">
+    {% for u in section.extra.usecases %}
+    <article class="card card--flat">
+      <h3>{{ u.title }}</h3>
+      <p>{{ u.text | markdown(inline=true) | safe }}</p>
+<pre class="snippet"><code>{{ u.code }}</code></pre>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="wrap narrow faq" aria-labelledby="faq-h">
+  <h2 id="faq-h" class="center">Questions</h2>
+  {% for q in section.extra.faq %}
+  <details>
+    <summary>{{ q.q }}</summary>
+    <div>{{ q.a | markdown | safe }}</div>
+  </details>
+  {% endfor %}
+</section>
+
+<section class="band band--cta">
+  <div class="wrap narrow center">
+    <h2>Convert your first chart in two minutes</h2>
+    <p>Install the binary, point it at a chart, apply the result.</p>
+    <div class="cta cta--center">
+      <a class="btn btn--primary" href="{{ get_url(path='@/docs/getting-started.md') }}">Get started</a>
+      <a class="btn" href="{{ get_url(path='@/docs/background.md') }}">New to kro?</a>
+    </div>
+  </div>
+</section>
+{% endblock content %}

@@ -1,0 +1,172 @@
+apiVersion: kro.run/v1alpha1
+kind: ResourceGraphDefinition
+metadata:
+  name: features
+  annotations:
+    chart2kro.io/chart: features-1.0.0
+  labels:
+    app.kubernetes.io/managed-by: chart2kro
+spec:
+  resources:
+    - id: configMap
+      template:
+        apiVersion: v1
+        kind: ConfigMap
+        metadata:
+          name: ${schema.metadata.name}-features
+        data:
+          greeting: ${schema.spec.message}, world
+          script.sh: |
+            echo "${"${"}HOME:-/root}"
+    - id: secretCredentials
+      includeWhen:
+        - ${schema.spec.credentials.enabled}
+      template:
+        apiVersion: v1
+        kind: Secret
+        metadata:
+          name: ${schema.metadata.name}-features-credentials
+        stringData:
+          username: ${schema.spec.credentials.username}
+        type: Opaque
+    - id: deployment
+      readyWhen:
+        - ${deployment.status.?availableReplicas.orValue(0) == deployment.spec.?replicas.orValue(1)}
+      template:
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: ${schema.metadata.name}-features
+          labels:
+            app.kubernetes.io/instance: ${schema.metadata.name}
+            app.kubernetes.io/name: features
+        spec:
+          replicas: ${schema.spec.replicaCount}
+          selector:
+            matchLabels:
+              app.kubernetes.io/instance: ${schema.metadata.name}
+              app.kubernetes.io/name: features
+          template:
+            metadata:
+              annotations:
+                checksum/config: ${base64.encode(hash.sha256(json.marshal(schema.spec)))}
+              labels:
+                app.kubernetes.io/instance: ${schema.metadata.name}
+                app.kubernetes.io/name: features
+            spec:
+              containers:
+                - name: app
+                  args: ${schema.spec.extraArgs}
+                  env:
+                    - name: PORT
+                      value: ${string(schema.spec.port)}
+                    - name: DEBUG
+                      value: '${schema.spec.debug ? "true" : "false"}'
+                    - name: SHOUT
+                      value: QUIET
+                    - name: DASHED
+                      value: ${schema.spec.my__dash__key}
+                    - name: FIRST
+                      value: x
+                    - name: NAMESPACE_DNS
+                      value: ${schema.metadata.name}-features.${schema.metadata.namespace}.svc
+                  image: ${schema.spec.image.repository}:${schema.spec.image.tag}
+                  imagePullPolicy: '${schema.spec.pullAlways ? "Always" : "IfNotPresent"}'
+                  ports:
+                    - containerPort: ${schema.spec.port}
+              nodeSelector: ${schema.spec.nodeSelector}
+              serviceAccountName: ${schema.metadata.name}-features
+    - id: ingress
+      includeWhen:
+        - ${schema.spec.ingress.enabled}
+      template:
+        apiVersion: networking.k8s.io/v1
+        kind: Ingress
+        metadata:
+          name: ${schema.metadata.name}-features
+        spec:
+          rules:
+            - host: ${schema.spec.ingress.host}
+              http:
+                paths:
+                  - backend:
+                      service:
+                        name: ${schema.metadata.name}-features
+                        port:
+                          number: ${schema.spec.port}
+                    path: /
+                    pathType: Prefix
+    - id: clusterRoleBinding
+      template:
+        apiVersion: rbac.authorization.k8s.io/v1
+        kind: ClusterRoleBinding
+        metadata:
+          name: ${schema.metadata.name}-features
+        roleRef:
+          kind: ClusterRole
+          name: features-shared-reader
+          apiGroup: rbac.authorization.k8s.io
+        subjects:
+          - kind: ServiceAccount
+            name: ${schema.metadata.name}-features
+            namespace: ${schema.metadata.namespace}
+    - id: secret
+      template:
+        apiVersion: v1
+        kind: Secret
+        metadata:
+          name: ${schema.metadata.name}-features
+        stringData:
+          password: ${schema.spec.chart2kroGenerated.secret.password}
+        type: Opaque
+    - id: service
+      template:
+        apiVersion: v1
+        kind: Service
+        metadata:
+          name: ${schema.metadata.name}-features
+        spec:
+          ports:
+            - port: ${schema.spec.port}
+          selector:
+            app.kubernetes.io/instance: ${schema.metadata.name}
+            app.kubernetes.io/name: features
+    - id: serviceAccount
+      template:
+        apiVersion: v1
+        kind: ServiceAccount
+        metadata:
+          name: ${schema.metadata.name}-features
+    - id: widget
+      template:
+        apiVersion: example.com/v1
+        kind: Widget
+        metadata:
+          name: ${schema.metadata.name}-features
+        spec:
+          size: ${schema.spec.replicaCount}
+  schema:
+    apiVersion: v1alpha1
+    kind: Features
+    group: kro.run
+    spec:
+      chart2kroGenerated:
+        secret:
+          password: string | required=true
+      credentials:
+        enabled: boolean | default=false
+        username: string | default="app"
+      debug: boolean | default=false
+      extraArgs: '[]string | default=[]'
+      image:
+        repository: string | default="ghcr.io/stefanprodan/podinfo"
+        tag: string | default="6.15.0"
+      ingress:
+        enabled: boolean | default=false
+        host: string | default="example.local"
+      message: string | default="hello"
+      my-key: string | default="dashed"
+      nodeSelector: object | default={}
+      port: integer | default=9898
+      pullAlways: boolean | default=false
+      replicaCount: integer | default=2

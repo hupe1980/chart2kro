@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="wrap narrow center notfound">
+  <h1>Page not found</h1>
+  <p>The page you are looking for does not exist or has moved.</p>
+  <div class="cta cta--center">
+    <a class="btn btn--primary" href="{{ get_url(path='@/docs/_index.md') }}">Browse the docs</a>
+    <button type="button" class="btn" data-search-open>Search</button>
+  </div>
+</section>
+{% endblock content %}

@@ -1,3 +1,4 @@
 auth:
   username: postgres
   database: postgres
+  password: changeme

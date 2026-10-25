@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "features.fullname" . }}
+  labels:
+    app.kubernetes.io/name: features
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: features
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: features
+        app.kubernetes.io/instance: {{ .Release.Name }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      nodeSelector: {{- toYaml .Values.nodeSelector | nindent 8 }}
+      serviceAccountName: {{ include "features.fullname" . }}
+      containers:
+        - name: app
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ if .Values.pullAlways }}Always{{ else }}IfNotPresent{{ end }}
+          args: {{- toYaml .Values.extraArgs | nindent 12 }}
+          env:
+            - name: PORT
+              value: {{ .Values.port | quote }}
+            - name: DEBUG
+              value: {{ .Values.debug | quote }}
+            - name: SHOUT
+              value: {{ upper .Values.shout }}
+            - name: DASHED
+              value: {{ index .Values "my-key" }}
+            - name: FIRST
+              value: {{ index .Values "1st" }}
+            - name: NAMESPACE_DNS
+              value: {{ include "features.fullname" . }}.{{ .Release.Namespace }}.svc
+          ports:
+            - containerPort: {{ .Values.port }}

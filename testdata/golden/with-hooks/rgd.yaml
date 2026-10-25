@@ -1,0 +1,23 @@
+apiVersion: kro.run/v1alpha1
+kind: ResourceGraphDefinition
+metadata:
+  name: with-hooks
+  annotations:
+    chart2kro.io/chart: with-hooks-1.0.0
+  labels:
+    app.kubernetes.io/managed-by: chart2kro
+spec:
+  resources:
+    - id: configMap
+      template:
+        apiVersion: v1
+        kind: ConfigMap
+        metadata:
+          name: ${schema.metadata.name}-config
+        data:
+          key: value
+  schema:
+    apiVersion: v1alpha1
+    kind: WithHooks
+    group: kro.run
+    spec: {}

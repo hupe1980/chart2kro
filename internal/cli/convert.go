@@ -1,503 +1,267 @@
 package cli
 
 import (
-	"context"
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
-	"log/slog"
 	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+	"text/tabwriter"
 	"time"
 
 	"github.com/spf13/cobra"
-	sigsyaml "sigs.k8s.io/yaml"
+	"github.com/spf13/pflag"
 
-	"github.com/hupe1980/chart2kro/internal/config"
-	"github.com/hupe1980/chart2kro/internal/filter"
-	"github.com/hupe1980/chart2kro/internal/harden"
-	"github.com/hupe1980/chart2kro/internal/helm/chartmeta"
-	"github.com/hupe1980/chart2kro/internal/helm/hooks"
-	"github.com/hupe1980/chart2kro/internal/helm/loader"
-	"github.com/hupe1980/chart2kro/internal/helm/renderer"
-	"github.com/hupe1980/chart2kro/internal/k8s"
-	"github.com/hupe1980/chart2kro/internal/k8s/parser"
-	"github.com/hupe1980/chart2kro/internal/logging"
-	"github.com/hupe1980/chart2kro/internal/output"
-	"github.com/hupe1980/chart2kro/internal/transform"
+	"github.com/hupe1980/chart2kro/pkg/chart2kro"
 )
 
-type convertOptions struct {
-	// Chart loading.
-	repoURL  string
-	version  string
-	username string
-	password string
-	caFile   string
-	certFile string
-	keyFile  string
+// chartFlags are shared by every command that converts a chart.
+func chartFlags(f *pflag.FlagSet, o *chart2kro.Options) {
+	f.StringVar(&o.Version, "version", "", "chart version (OCI and repository charts)")
+	f.StringVar(&o.RepoURL, "repo", "", "chart repository URL (for NAME without a repo/ prefix)")
+	f.StringVar(&o.Username, "username", "", "registry or repository username")
+	f.StringVar(&o.Password, "password", "", "registry or repository password")
+	f.StringVar(&o.CAFile, "ca-file", "", "TLS CA bundle for the registry or repository")
+	f.StringVar(&o.CertFile, "cert-file", "", "TLS client certificate")
+	f.StringVar(&o.KeyFile, "key-file", "", "TLS client key")
 
-	// Template rendering.
-	releaseName string
-	namespace   string
-	strict      bool
-	timeout     time.Duration
+	f.StringArrayVarP(&o.ValueFiles, "values", "f", nil, "values file (repeatable); merged values become the API's defaults")
+	f.StringArrayVar(&o.Set, "set", nil, "set a value (key=value, repeatable)")
+	f.StringArrayVar(&o.SetString, "set-string", nil, "set a string value (repeatable)")
+	f.StringArrayVar(&o.SetFile, "set-file", nil, "set a value from a file (key=path, repeatable)")
 
-	// Values merging.
-	valueFiles   []string
-	values       []string
-	stringValues []string
-	fileValues   []string
+	f.StringVar(&o.Kind, "kind", "", "kind of the generated API (default: PascalCase chart name)")
+	f.StringVar(&o.Group, "group", "", "API group (default: kro.run)")
+	f.StringVar(&o.APIVersion, "api-version", "", "API version (default: v1alpha1)")
 
-	// Hook handling.
-	includeHooks bool
+	f.StringSliceVar(&o.Expose, "expose", nil, "expose only these value paths (globs); fail if one cannot be exposed")
+	f.StringSliceVar(&o.Freeze, "freeze", nil, "never expose these value paths (globs)")
+	f.StringSliceVar(&o.Exclude, "exclude", nil, "drop resources by id (see 'inspect')")
+	f.StringSliceVar(&o.ExcludeSubcharts, "exclude-subchart", nil, "drop every resource of a subchart")
+	f.BoolVar(&o.IncludeHooks, "include-hooks", false, "keep non-test hooks as ordinary resources")
 
-	// Transformation.
-	kind             string
-	apiVersion       string
-	group            string
-	includeAllValues bool
-	flatSchema       bool
-	readyConditions  string
-	fast             bool
-
-	// Output.
-	output         string
-	dryRun         bool
-	comments       bool
-	split          bool
-	outputDir      string
-	embedTimestamp bool
-
-	// Resource filtering.
-	excludeKinds       []string
-	excludeResources   []string
-	excludeSubcharts   []string
-	excludeLabels      string
-	externalizeSecret  []string
-	externalizeService []string
-	useExternalPattern []string
-	profile            string
-
-	// Hardening.
-	harden                  bool
-	securityLevel           string
-	generateNetworkPolicies bool
-	generateRBAC            bool
-	resolveDigests          bool
+	f.StringVar(&o.KubeVersion, "kube-version", "", "Kubernetes version for rendering and validation (default: newest supported)")
+	f.StringArrayVar(&o.CRDFiles, "crd", nil, "CRD file for validating custom resources (repeatable)")
+	f.DurationVar(&o.Timeout, "timeout", 30*time.Second, "timeout per render")
+	f.IntVar(&o.Parallelism, "parallel", 0, "concurrent renders (default: number of CPUs)")
 }
 
-func newConvertCommand() *cobra.Command {
-	opts := &convertOptions{}
+func newConvertCmd(g *globals) *cobra.Command {
+	var (
+		o      chart2kro.Options
+		outDir string
+		check  bool
+		report string
+	)
 
 	cmd := &cobra.Command{
-		Use:   "convert <chart-reference>",
-		Short: "Convert a Helm chart to a KRO ResourceGraphDefinition",
-		Long: `Convert a Helm chart into a KRO ResourceGraphDefinition (RGD).
+		Use:   "convert CHART",
+		Short: "Convert a chart into a ResourceGraphDefinition",
+		Long: `Convert a chart (directory, .tgz, oci://…, or repo/chart) into a kro ResourceGraphDefinition.
 
-Supports loading charts from local directories, .tgz archives,
-OCI registries, and Helm repositories.`,
-		Args: cobra.ExactArgs(1),
+Without -o the RGD is written to stdout (prerequisites first, if any). With -o DIR
+chart2kro writes rgd.yaml, prerequisites.yaml (if any), instance.yaml and report.json.`,
+		Example: `  chart2kro convert oci://ghcr.io/stefanprodan/charts/podinfo
+  chart2kro convert ./mychart -f platform-values.yaml --expose 'image.tag,replicaCount' -o out/
+  chart2kro convert ./mychart -o out/ --check   # CI: fail if out/ is stale`,
+		Args: exactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runConvert(cmd.Context(), cmd, args[0], opts)
+			if check && outDir == "" {
+				return &usageError{fmt.Errorf("--check needs -o DIR")}
+			}
+
+			log, err := g.logger()
+			if err != nil {
+				return err
+			}
+
+			o.Chart, o.Logger = args[0], log
+
+			res, err := chart2kro.Convert(cmd.Context(), o)
+			if err != nil {
+				return err
+			}
+
+			if !g.quiet {
+				printSummary(g.stderr, res.Report)
+			}
+
+			if report != "" {
+				if err := writeJSON(report, res.Report); err != nil {
+					return err
+				}
+			}
+
+			switch {
+			case check:
+				return checkDir(outDir, files(res))
+			case outDir != "":
+				return writeDir(outDir, files(res))
+			default:
+				if len(res.Prerequisites) > 0 {
+					_, _ = g.stdout.Write(res.Prerequisites)
+					_, _ = io.WriteString(g.stdout, "---\n")
+				}
+
+				_, err = g.stdout.Write(res.RGD)
+
+				return err
+			}
 		},
 	}
 
-	f := cmd.Flags()
-
-	// Chart loading flags.
-	f.StringVar(&opts.repoURL, "repo-url", "", "Helm repository URL")
-	f.StringVar(&opts.version, "version", "", "chart version constraint")
-	f.StringVar(&opts.username, "username", "", "repository/registry username")
-	f.StringVar(&opts.password, "password", "", "repository/registry password")
-	f.StringVar(&opts.caFile, "ca-file", "", "TLS CA certificate file")
-	f.StringVar(&opts.certFile, "cert-file", "", "TLS client certificate file")
-	f.StringVar(&opts.keyFile, "key-file", "", "TLS client key file")
-
-	// Rendering flags.
-	f.StringVar(&opts.releaseName, "release-name", "release", "Helm release name for rendering")
-	f.StringVar(&opts.namespace, "namespace", "default", "Kubernetes namespace for rendering")
-	f.BoolVar(&opts.strict, "strict", false, "fail on missing template values")
-	f.DurationVar(&opts.timeout, "timeout", 30*time.Second, "template rendering timeout")
-
-	// Values flags.
-	f.StringArrayVarP(&opts.valueFiles, "values", "f", nil, "values YAML files (can specify multiple)")
-	f.StringArrayVar(&opts.values, "set", nil, "set values (key=value, can specify multiple)")
-	f.StringArrayVar(&opts.stringValues, "set-string", nil, "set string values (key=value)")
-	f.StringArrayVar(&opts.fileValues, "set-file", nil, "set values from files (key=filepath)")
-
-	// Hook handling flags.
-	f.BoolVar(&opts.includeHooks, "include-hooks", false, "include hook resources (strip hook annotations)")
-
-	// Transformation flags.
-	f.StringVar(&opts.kind, "kind", "", "override generated CRD kind (default: PascalCase chart name)")
-	f.StringVar(&opts.apiVersion, "api-version", "v1alpha1", "KRO schema apiVersion")
-	f.StringVar(&opts.group, "group", "kro.run", "KRO schema group")
-	f.BoolVar(&opts.includeAllValues, "include-all-values", false, "include all values in schema")
-	f.BoolVar(&opts.flatSchema, "flat-schema", false, "use flat camelCase schema field names")
-	f.StringVar(&opts.readyConditions, "ready-conditions", "", "path to a YAML file with custom readiness conditions per Kind")
-	f.BoolVar(&opts.fast, "fast", false, "use template AST analysis instead of sentinel rendering (faster, may miss complex expressions)")
-
-	// Output flags.
-	f.StringVarP(&opts.output, "output", "o", "", "output file path (default: stdout)")
-	f.BoolVar(&opts.dryRun, "dry-run", false, "preview output without writing files")
-	f.BoolVar(&opts.comments, "comments", false, "add inline comments on CEL expressions")
-	f.BoolVar(&opts.split, "split", false, "write one YAML file per resource (requires --output-dir)")
-	f.StringVar(&opts.outputDir, "output-dir", "", "output directory for --split")
-	f.BoolVar(&opts.embedTimestamp, "embed-timestamp", false, "add chart2kro.io/generated-at annotation")
-
-	// Resource filtering flags.
-	f.StringSliceVar(&opts.excludeKinds, "exclude-kinds", nil, "exclude resources by kind (comma-separated)")
-	f.StringSliceVar(&opts.excludeResources, "exclude-resources", nil, "exclude resources by assigned ID (comma-separated)")
-	f.StringSliceVar(&opts.excludeSubcharts, "exclude-subcharts", nil, "exclude all resources from named subcharts (comma-separated)")
-	f.StringVar(&opts.excludeLabels, "exclude-labels", "", "exclude resources matching label selector (e.g., component=database)")
-	f.StringArrayVar(&opts.externalizeSecret, "externalize-secret", nil, "externalize a Secret (name=schemaField)")
-	f.StringArrayVar(&opts.externalizeService, "externalize-service", nil, "externalize a Service (name=schemaField)")
-	f.StringSliceVar(&opts.useExternalPattern, "use-external-pattern", nil, "auto-detect and apply external pattern for subchart")
-	f.StringVar(&opts.profile, "profile", "", "apply a conversion profile (enterprise, minimal, app-only, or custom)")
-
-	// Hardening flags.
-	f.BoolVar(&opts.harden, "harden", false, "enable security hardening pipeline")
-	f.StringVar(&opts.securityLevel, "security-level", "restricted", "PSS enforcement level (none, baseline, restricted)")
-	f.BoolVar(&opts.generateNetworkPolicies, "generate-network-policies", false, "generate NetworkPolicies from dependency graph")
-	f.BoolVar(&opts.generateRBAC, "generate-rbac", false, "generate least-privilege ServiceAccount + Role + RoleBinding")
-	f.BoolVar(&opts.resolveDigests, "resolve-digests", false, "resolve image tags to sha256 digests from container registries")
+	chartFlags(cmd.Flags(), &o)
+	cmd.Flags().StringVarP(&outDir, "output-dir", "o", "", "write rgd.yaml, prerequisites.yaml, instance.yaml and report.json to DIR")
+	cmd.Flags().BoolVar(&check, "check", false, "compare with the files in -o DIR instead of writing (exit 9 if stale)")
+	cmd.Flags().StringVar(&report, "report", "", "also write the report JSON to this file")
 
 	return cmd
 }
 
-func runConvert(ctx context.Context, cmd *cobra.Command, ref string, opts *convertOptions) error {
-	logger := logging.FromContext(ctx)
+func files(res *chart2kro.Result) map[string][]byte {
+	rep, _ := json.MarshalIndent(res.Report, "", "  ")
 
-	// Detect source type (informational).
-	if sourceType, err := loader.Detect(ref); err == nil {
-		logger.Info("detected chart source type", slog.String("type", sourceType.String()))
+	m := map[string][]byte{
+		"rgd.yaml":      res.RGD,
+		"instance.yaml": res.Instance,
+		"report.json":   append(rep, '\n'),
 	}
 
-	// Run core pipeline (steps 1-10: load → render → detect → transform → generate RGD).
-	res, err := runPipeline(ctx, ref, opts)
-	if err != nil {
-		return err
+	if len(res.Prerequisites) > 0 {
+		m["prerequisites.yaml"] = res.Prerequisites
 	}
 
-	// Print interactive summaries (convert-only).
-	if res.HookResult != nil {
-		hooks.PrintHookSummary(cmd.ErrOrStderr(), res.HookResult)
+	return m
+}
+
+func writeDir(dir string, fs map[string][]byte) error {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
+		return fmt.Errorf("%w: %w", chart2kro.ErrWrite, err)
 	}
 
-	if res.FilterResult != nil && (len(res.FilterResult.Excluded) > 0 || len(res.FilterResult.Externalized) > 0) {
-		printFilterSummary(cmd.ErrOrStderr(), res.FilterResult)
+	if _, ok := fs["prerequisites.yaml"]; !ok {
+		_ = os.Remove(filepath.Join(dir, "prerequisites.yaml"))
 	}
 
-	logger.Info("transformation complete",
-		slog.Int("resources", len(res.Result.Resources)),
-		slog.Int("schema_fields", len(res.Result.SchemaFields)),
-		slog.Int("status_fields", len(res.Result.StatusFields)),
-		slog.Int("field_mappings", len(res.Result.FieldMappings)),
-	)
-
-	// 11. Finalize RGD map with convert-specific annotations.
-	rgdMap := res.RGDMap
-
-	if opts.embedTimestamp {
-		metaMap, _ := rgdMap["metadata"].(map[string]interface{})
-		if metaMap != nil {
-			annotations, _ := metaMap["annotations"].(map[string]interface{})
-			if annotations == nil {
-				annotations = make(map[string]interface{})
-			}
-
-			annotations["chart2kro.io/generated-at"] = time.Now().UTC().Format(time.RFC3339)
-			metaMap["annotations"] = annotations
+	for name, b := range fs {
+		if err := writeAtomic(filepath.Join(dir, name), b); err != nil {
+			return fmt.Errorf("%w: %w", chart2kro.ErrWrite, err)
 		}
 	}
-
-	if opts.harden {
-		provAnnotations, provErr := harden.GenerateProvenanceAnnotations(harden.ProvenanceConfig{
-			ChartRef:          ref,
-			Profile:           opts.profile,
-			HardeningLevel:    harden.SecurityLevel(opts.securityLevel),
-			ExcludedSubcharts: opts.excludeSubcharts,
-			EmbedTimestamp:    opts.embedTimestamp,
-		})
-		if provErr != nil {
-			return &ExitError{Code: 1, Err: fmt.Errorf("generating provenance annotations: %w", provErr)}
-		}
-
-		metaMap, _ := rgdMap["metadata"].(map[string]interface{})
-		if metaMap != nil {
-			annotations, _ := metaMap["annotations"].(map[string]interface{})
-			if annotations == nil {
-				annotations = make(map[string]interface{})
-			}
-
-			for k, v := range provAnnotations {
-				annotations[k] = v
-			}
-
-			metaMap["annotations"] = annotations
-		}
-	}
-
-	// 12. Serialize and output.
-	if err := output.ValidateSplitFlags(opts.split, opts.outputDir); err != nil {
-		return &ExitError{Code: 2, Err: err}
-	}
-
-	serOpts := output.SerializeOptions{
-		Comments: opts.comments,
-		Indent:   2,
-	}
-
-	if opts.split {
-		splitResult, splitErr := output.Split(rgdMap, serOpts)
-		if splitErr != nil {
-			return &ExitError{Code: 1, Err: fmt.Errorf("splitting RGD: %w", splitErr)}
-		}
-
-		if err := output.WriteSplit(opts.outputDir, splitResult); err != nil {
-			return &ExitError{Code: 6, Err: fmt.Errorf("writing split output: %w", err)}
-		}
-
-		logger.Info("split output written", slog.String("dir", opts.outputDir), slog.Int("files", len(splitResult.Files)))
-		printConvertSummary(cmd.ErrOrStderr(), res.Result, res.HookResult, res.HardenResult)
-
-		return nil
-	}
-
-	yamlBytes, err := output.Serialize(rgdMap, serOpts)
-	if err != nil {
-		return &ExitError{Code: 1, Err: fmt.Errorf("serializing RGD: %w", err)}
-	}
-
-	if opts.dryRun {
-		_, _ = fmt.Fprintln(cmd.ErrOrStderr(), "# Dry-run mode — output preview:")
-	}
-
-	if opts.output != "" && !opts.dryRun {
-		w := output.NewFileWriter(opts.output, output.WithLogger(logger))
-		if err := w.Write(yamlBytes); err != nil {
-			return &ExitError{Code: 6, Err: fmt.Errorf("writing output: %w", err)}
-		}
-
-		logger.Info("RGD written", slog.String("path", opts.output))
-	} else {
-		if _, err := cmd.OutOrStdout().Write(yamlBytes); err != nil {
-			return &ExitError{Code: 6, Err: fmt.Errorf("writing output: %w", err)}
-		}
-	}
-
-	// 13. Print summary.
-	printConvertSummary(cmd.ErrOrStderr(), res.Result, res.HookResult, res.HardenResult)
 
 	return nil
 }
 
-// printConvertSummary prints a human-readable summary of the conversion.
-func printConvertSummary(w io.Writer, result *transform.Result, hookResult *hooks.FilterResult, hardenResult *harden.Result) {
-	_, _ = fmt.Fprintf(w, "\n--- Conversion Summary ---\n")
-	_, _ = fmt.Fprintf(w, "Resources:     %d\n", len(result.Resources))
-	_, _ = fmt.Fprintf(w, "Schema fields: %d\n", len(result.SchemaFields))
-	_, _ = fmt.Fprintf(w, "Status fields: %d\n", len(result.StatusFields))
-
-	if len(hookResult.DroppedHooks) > 0 {
-		_, _ = fmt.Fprintf(w, "Hooks dropped:  %d\n", len(hookResult.DroppedHooks))
-	}
-
-	if len(hookResult.IncludedHooks) > 0 {
-		_, _ = fmt.Fprintf(w, "Hooks included: %d\n", len(hookResult.IncludedHooks))
-	}
-
-	if hardenResult != nil {
-		_, _ = fmt.Fprintf(w, "Hardening:      %d changes, %d warnings\n",
-			len(hardenResult.Changes), len(hardenResult.Warnings))
-	}
-
-	_, _ = fmt.Fprintf(w, "--------------------------\n")
-}
-
-// buildFilterChain assembles a filter chain from CLI flags and profiles.
-// Returns nil if no filters are configured.
-func buildFilterChain(
-	ctx context.Context,
-	opts *convertOptions,
-	meta *chartmeta.ChartMeta,
-	values map[string]interface{},
-	resources []*k8s.Resource,
-) (*filter.Chain, error) {
-	var filters []filter.Filter
-
-	// 1. Profile-based filters.
-	if opts.profile != "" {
-		if filter.IsMinimalProfile(opts.profile) {
-			filters = append(filters, filter.NewMinimalFilter())
-		} else {
-			// Try loading custom profiles from config file.
-			var customProfiles map[string]filter.ProfileConfig
-
-			configData, err := tryReadConfigFile(ctx)
-			if err == nil && configData != nil {
-				customProfiles, _ = filter.ParseCustomProfiles(configData)
-			}
-
-			p, err := filter.ResolveProfile(opts.profile, customProfiles)
-			if err != nil {
-				return nil, err
-			}
-
-			profileFilters, err := filter.BuildFiltersFromProfile(p)
-			if err != nil {
-				return nil, fmt.Errorf("building filters from profile %q: %w", opts.profile, err)
-			}
-
-			filters = append(filters, profileFilters...)
-		}
-	}
-
-	// 2. Smart external pattern detection.
-	for _, name := range opts.useExternalPattern {
-		pattern, found := filter.DetectExternalPatternsForSubchart(meta, values, name)
-		if !found {
-			return nil, fmt.Errorf("no external pattern detected for subchart %q", name)
-		}
-
-		patternFilters := filter.BuildFiltersFromPattern(pattern)
-		filters = append(filters, patternFilters...)
-	}
-
-	// 3. Explicit subchart exclusion.
-	if len(opts.excludeSubcharts) > 0 {
-		filters = append(filters, filter.NewSubchartFilter(opts.excludeSubcharts))
-	}
-
-	// 4. Kind exclusion.
-	if len(opts.excludeKinds) > 0 {
-		filters = append(filters, filter.NewKindFilter(opts.excludeKinds))
-	}
-
-	// 5. Label exclusion.
-	if opts.excludeLabels != "" {
-		lf, err := filter.NewLabelFilter(opts.excludeLabels)
-		if err != nil {
-			return nil, fmt.Errorf("parsing label selector: %w", err)
-		}
-
-		filters = append(filters, lf)
-	}
-
-	// 6. Resource ID exclusion (needs IDs assigned first).
-	if len(opts.excludeResources) > 0 {
-		tempIDs, err := transform.AssignResourceIDs(resources, nil)
-		if err != nil {
-			return nil, fmt.Errorf("assigning IDs for resource exclusion: %w", err)
-		}
-
-		filters = append(filters, filter.NewResourceIDFilter(opts.excludeResources, tempIDs))
-	}
-
-	// 7. ExternalRef promotion.
-	var mappings []filter.ExternalMapping
-
-	for _, expr := range opts.externalizeSecret {
-		m, err := filter.ParseExternalMapping("Secret", expr)
-		if err != nil {
-			return nil, err
-		}
-
-		mappings = append(mappings, m)
-	}
-
-	for _, expr := range opts.externalizeService {
-		m, err := filter.ParseExternalMapping("Service", expr)
-		if err != nil {
-			return nil, err
-		}
-
-		mappings = append(mappings, m)
-	}
-
-	if len(mappings) > 0 {
-		filters = append(filters, filter.NewExternalRefFilter(mappings))
-	}
-
-	if len(filters) == 0 {
-		return nil, nil //nolint:nilnil // intentional: no filters configured
-	}
-
-	return filter.NewChain(filters...), nil
-}
-
-// assignResourceSourcePaths maps parsed resources to their source template paths.
-// A single template file can produce multiple YAML documents, so we parse each
-// sourced manifest's content and match resources by GVK + name.
-func assignResourceSourcePaths(resources []*k8s.Resource, sourced []renderer.SourcedManifest) {
-	// Build a lookup from "Kind/Name" → template path.
-	pathLookup := make(map[string]string)
-
-	for _, sm := range sourced {
-		// Split each sourced manifest into individual YAML docs.
-		docs := parser.SplitDocuments([]byte(sm.Content))
-		for _, doc := range docs {
-			var obj map[string]interface{}
-			if err := sigsyaml.Unmarshal(doc, &obj); err != nil {
-				continue
-			}
-
-			kind, _ := obj["kind"].(string)
-
-			meta, _ := obj["metadata"].(map[string]interface{})
-			name, _ := meta["name"].(string)
-
-			if kind != "" && name != "" {
-				pathLookup[kind+"/"+name] = sm.TemplatePath
-			}
-		}
-	}
-
-	// Assign source paths by matching Kind/Name.
-	for _, res := range resources {
-		key := res.Kind() + "/" + res.Name
-		if path, ok := pathLookup[key]; ok {
-			res.SourcePath = path
-		}
-	}
-}
-
-// printFilterSummary prints a summary of filtered resources to stderr.
-func printFilterSummary(w io.Writer, result *filter.Result) {
-	_, _ = fmt.Fprintf(w, "\n--- Filter Summary ---\n")
-
-	for _, ex := range result.Excluded {
-		_, _ = fmt.Fprintf(w, "  Excluded: %s (%s)\n", ex.Resource.QualifiedName(), ex.Reason)
-	}
-
-	for _, ext := range result.Externalized {
-		_, _ = fmt.Fprintf(w, "  Externalized: %s\n", ext.Resource.QualifiedName())
-	}
-
-	_, _ = fmt.Fprintf(w, "  Excluded: %d, Externalized: %d, Remaining: %d\n",
-		len(result.Excluded), len(result.Externalized), len(result.Included))
-	_, _ = fmt.Fprintf(w, "----------------------\n")
-}
-
-// tryReadConfigFile attempts to read the config file. It first checks for a
-// path resolved by the --config flag (stored in the Config struct); if not set,
-// it falls back to .chart2kro.yaml in the current directory.
-func tryReadConfigFile(ctx context.Context) ([]byte, error) {
-	// Prefer the config file path resolved by viper (respects --config flag).
-	cfg := config.FromContext(ctx)
-	if cfg.ConfigFile != "" {
-		data, err := os.ReadFile(cfg.ConfigFile)
-		if err != nil {
-			return nil, err
-		}
-
-		return data, nil
-	}
-
-	// Fallback: auto-discover .chart2kro.yaml in current directory.
-	data, err := os.ReadFile(".chart2kro.yaml")
+// writeAtomic writes via a temporary file and rename, so readers never see half a file.
+func writeAtomic(path string, b []byte) error {
+	tmp, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".*")
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return data, nil
+	if _, err := tmp.Write(b); err != nil {
+		_ = tmp.Close()
+		_ = os.Remove(tmp.Name())
+
+		return err
+	}
+
+	if err := tmp.Close(); err != nil {
+		_ = os.Remove(tmp.Name())
+		return err
+	}
+
+	if err := os.Chmod(tmp.Name(), 0o644); err != nil { //nolint:gosec // generated manifests are not secret
+		_ = os.Remove(tmp.Name())
+		return err
+	}
+
+	return os.Rename(tmp.Name(), path)
+}
+
+func checkDir(dir string, fs map[string][]byte) error {
+	var stale []string
+
+	for name, want := range fs {
+		got, err := os.ReadFile(filepath.Join(dir, name)) //nolint:gosec // user-selected output directory
+		if err != nil || !bytes.Equal(got, want) {
+			stale = append(stale, name)
+		}
+	}
+
+	if _, ok := fs["prerequisites.yaml"]; !ok {
+		if _, err := os.Stat(filepath.Join(dir, "prerequisites.yaml")); err == nil {
+			stale = append(stale, "prerequisites.yaml (should not exist)")
+		}
+	}
+
+	if len(stale) > 0 {
+		sort.Strings(stale)
+		return fmt.Errorf("%w: %s in %s; run without --check to regenerate", chart2kro.ErrStale, strings.Join(stale, ", "), dir)
+	}
+
+	return nil
+}
+
+func writeJSON(path string, v any) error {
+	b, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	if err := writeAtomic(path, append(b, '\n')); err != nil {
+		return fmt.Errorf("%w: %w", chart2kro.ErrWrite, err)
+	}
+
+	return nil
+}
+
+func printSummary(w io.Writer, r *chart2kro.Report) {
+	fmt.Fprintf(w, "%s %s → %s.%s/%s: %d resources, %d exposed, %d frozen, %d failed, %d unused (%d witnesses, kro %s, Kubernetes %s)\n",
+		r.Chart.Name, r.Chart.Version, r.Kind, r.Group, r.APIVersion, len(r.Resources),
+		r.Summary.Exposed, r.Summary.Frozen, r.Summary.Failed, r.Summary.Unused, r.Witnesses, r.KroVersion, r.KubeVersion)
+
+	reasons := map[string]int{}
+
+	for _, v := range r.Values {
+		if v.Reason != "" {
+			reasons[v.Outcome+": "+v.Reason]++
+		}
+	}
+
+	if len(reasons) > 0 {
+		keys := make([]string, 0, len(reasons))
+		for k := range reasons {
+			keys = append(keys, k)
+		}
+
+		sort.Strings(keys)
+
+		tw := tabwriter.NewWriter(w, 2, 2, 2, ' ', 0)
+		for _, k := range keys {
+			fmt.Fprintf(tw, "  %s\t%d\n", k, reasons[k])
+		}
+
+		_ = tw.Flush()
+		fmt.Fprintln(w, "  run 'chart2kro inspect' for details")
+	}
+
+	for _, in := range r.Inputs {
+		fmt.Fprintf(w, "  required input: spec.%s (%s)\n", in.Path, in.Reason)
+	}
+
+	for _, p := range r.Prerequisites {
+		fmt.Fprintf(w, "  prerequisite (install once): %s %s\n", p.Kind, p.Name)
+	}
+
+	for _, d := range r.Dropped {
+		fmt.Fprintf(w, "  dropped: %s %s (%s)\n", d.Kind, d.Name, d.Reason)
+	}
+
+	for _, x := range r.Warnings {
+		fmt.Fprintf(w, "  warning: %s\n", x)
+	}
 }

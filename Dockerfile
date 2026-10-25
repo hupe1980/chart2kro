@@ -3,7 +3,7 @@
 # ---------------------------------------------------------------------------
 # Build stage
 # ---------------------------------------------------------------------------
-FROM golang:1-alpine AS builder
+FROM golang:1.27-alpine AS builder
 
 RUN apk add --no-cache git
 
@@ -18,7 +18,7 @@ ARG COMMIT=none
 ARG BUILD_DATE=unknown
 
 RUN CGO_ENABLED=0 go build \
-    -ldflags "-s -w \
+    -trimpath -ldflags "-s -w \
       -X github.com/hupe1980/chart2kro/internal/version.version=${VERSION} \
       -X github.com/hupe1980/chart2kro/internal/version.gitCommit=${COMMIT} \
       -X github.com/hupe1980/chart2kro/internal/version.buildDate=${BUILD_DATE}" \

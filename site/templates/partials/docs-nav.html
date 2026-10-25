@@ -1,0 +1,14 @@
+{%- set docs = get_section(path="docs/_index.md") -%}
+<details class="sidebar" open data-docnav>
+<summary>Documentation menu</summary>
+<nav aria-label="Documentation">
+  {%- for group in docs.extra.groups %}
+  <p class="sidebar__group">{{ group }}</p>
+  <ul>
+    {%- for p in docs.pages %}{% if p.extra.group == group %}
+    <li><a href="{{ p.permalink | safe }}"{% if current_path == p.path %} aria-current="page"{% endif %}>{{ p.extra.nav | default(value=p.title) }}</a></li>
+    {%- endif %}{% endfor %}
+  </ul>
+  {%- endfor %}
+</nav>
+</details>

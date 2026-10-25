@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "chart2kro.io/report/v1",
+  "chart": {
+    "name": "with-hooks",
+    "version": "1.0.0",
+    "source": "../../testdata/charts/with-hooks"
+  },
+  "kind": "WithHooks",
+  "group": "kro.run",
+  "apiVersion": "v1alpha1",
+  "kubeVersion": "1.37",
+  "kroVersion": "v0.9.4",
+  "witnesses": 4,
+  "summary": {
+    "exposed": 0,
+    "frozen": 0,
+    "failed": 0,
+    "unused": 1
+  },
+  "values": [
+    {
+      "path": "image",
+      "outcome": "unused",
+      "reason": "affects-only-dropped-objects",
+      "detail": "every field it controls is in objects that are not part of the RGD (hooks, excluded, prerequisites)"
+    }
+  ],
+  "resources": [
+    {
+      "id": "configMap",
+      "kind": "ConfigMap",
+      "source": "with-hooks/templates/configmap.yaml"
+    }
+  ],
+  "dropped": [
+    {
+      "kind": "Job",
+      "name": "\u003cname\u003e-migrate",
+      "source": "with-hooks/templates/pre-install.yaml",
+      "reason": "hook pre-install"
+    },
+    {
+      "kind": "Pod",
+      "name": "\u003cname\u003e-test",
+      "source": "with-hooks/templates/test.yaml",
+      "reason": "test hook"
+    }
+  ]
+}

@@ -1,0 +1,233 @@
+{
+  "schemaVersion": "chart2kro.io/report/v1",
+  "chart": {
+    "name": "microservice",
+    "version": "0.1.0",
+    "source": "examples/microservice/chart"
+  },
+  "kind": "Microservice",
+  "group": "kro.run",
+  "apiVersion": "v1alpha1",
+  "kubeVersion": "1.37",
+  "kroVersion": "v0.9.4",
+  "witnesses": 42,
+  "summary": {
+    "exposed": 16,
+    "frozen": 3,
+    "failed": 0,
+    "unused": 1
+  },
+  "values": [
+    {
+      "path": "autoscaling.enabled",
+      "outcome": "frozen",
+      "reason": "toggles-fields",
+      "detail": "Deployment (microservice/templates/deployment.yaml) spec.replicas"
+    },
+    {
+      "path": "autoscaling.maxReplicas",
+      "outcome": "exposed",
+      "kind": "reference",
+      "type": "integer",
+      "default": 10,
+      "targets": [
+        "horizontalPodAutoscaler.spec.maxReplicas"
+      ]
+    },
+    {
+      "path": "autoscaling.minReplicas",
+      "outcome": "exposed",
+      "kind": "reference",
+      "type": "integer",
+      "default": 2,
+      "targets": [
+        "horizontalPodAutoscaler.spec.minReplicas"
+      ]
+    },
+    {
+      "path": "autoscaling.targetCPUUtilization",
+      "outcome": "exposed",
+      "kind": "reference",
+      "type": "integer",
+      "default": 75,
+      "targets": [
+        "horizontalPodAutoscaler.spec.metrics[0].resource.target.averageUtilization"
+      ]
+    },
+    {
+      "path": "env.APP_PORT",
+      "outcome": "exposed",
+      "kind": "reference",
+      "type": "string",
+      "default": "8080",
+      "targets": [
+        "configMap.data.APP_PORT"
+      ]
+    },
+    {
+      "path": "env.LOG_LEVEL",
+      "outcome": "exposed",
+      "kind": "reference",
+      "type": "string",
+      "default": "info",
+      "targets": [
+        "configMap.data.LOG_LEVEL"
+      ]
+    },
+    {
+      "path": "image.pullPolicy",
+      "outcome": "exposed",
+      "kind": "reference",
+      "type": "string",
+      "default": "IfNotPresent",
+      "targets": [
+        "deployment.spec.template.spec.containers[0].imagePullPolicy"
+      ]
+    },
+    {
+      "path": "image.repository",
+      "outcome": "exposed",
+      "kind": "interpolation",
+      "type": "string",
+      "default": "myorg/api-server",
+      "targets": [
+        "deployment.spec.template.spec.containers[0].image"
+      ]
+    },
+    {
+      "path": "image.tag",
+      "outcome": "exposed",
+      "kind": "interpolation",
+      "type": "string",
+      "default": "1.0.0",
+      "targets": [
+        "deployment.spec.template.spec.containers[0].image"
+      ]
+    },
+    {
+      "path": "ingress.className",
+      "outcome": "exposed",
+      "kind": "reference",
+      "type": "string",
+      "default": "nginx",
+      "targets": [
+        "ingress.spec.ingressClassName"
+      ]
+    },
+    {
+      "path": "ingress.enabled",
+      "outcome": "exposed",
+      "kind": "conditional",
+      "type": "boolean",
+      "default": true
+    },
+    {
+      "path": "ingress.host",
+      "outcome": "exposed",
+      "kind": "reference",
+      "type": "string",
+      "default": "api.example.com",
+      "targets": [
+        "ingress.spec.rules[0].host"
+      ]
+    },
+    {
+      "path": "ingress.tls",
+      "outcome": "frozen",
+      "reason": "toggles-fields",
+      "detail": "Ingress (microservice/templates/ingress.yaml) spec.tls"
+    },
+    {
+      "path": "replicaCount",
+      "outcome": "unused"
+    },
+    {
+      "path": "resources.limits.cpu",
+      "outcome": "frozen",
+      "reason": "transformed",
+      "detail": "Deployment (microservice/templates/deployment.yaml) spec.template.spec.containers[0].resources.limits.cpu"
+    },
+    {
+      "path": "resources.limits.memory",
+      "outcome": "exposed",
+      "kind": "reference",
+      "type": "string",
+      "default": "512Mi",
+      "targets": [
+        "deployment.spec.template.spec.containers[0].resources.limits.memory"
+      ]
+    },
+    {
+      "path": "resources.requests.cpu",
+      "outcome": "exposed",
+      "kind": "reference",
+      "type": "string",
+      "default": "200m",
+      "targets": [
+        "deployment.spec.template.spec.containers[0].resources.requests.cpu"
+      ]
+    },
+    {
+      "path": "resources.requests.memory",
+      "outcome": "exposed",
+      "kind": "reference",
+      "type": "string",
+      "default": "256Mi",
+      "targets": [
+        "deployment.spec.template.spec.containers[0].resources.requests.memory"
+      ]
+    },
+    {
+      "path": "service.port",
+      "outcome": "exposed",
+      "kind": "reference",
+      "type": "integer",
+      "default": 8080,
+      "targets": [
+        "deployment.spec.template.spec.containers[0].ports[0].containerPort",
+        "ingress.spec.rules[0].http.paths[0].backend.service.port.number",
+        "service.spec.ports[0].port"
+      ]
+    },
+    {
+      "path": "service.type",
+      "outcome": "exposed",
+      "kind": "reference",
+      "type": "string",
+      "default": "ClusterIP",
+      "targets": [
+        "service.spec.type"
+      ]
+    }
+  ],
+  "resources": [
+    {
+      "id": "configMap",
+      "kind": "ConfigMap",
+      "source": "microservice/templates/configmap.yaml"
+    },
+    {
+      "id": "deployment",
+      "kind": "Deployment",
+      "source": "microservice/templates/deployment.yaml"
+    },
+    {
+      "id": "horizontalPodAutoscaler",
+      "kind": "HorizontalPodAutoscaler",
+      "source": "microservice/templates/hpa.yaml"
+    },
+    {
+      "id": "ingress",
+      "kind": "Ingress",
+      "source": "microservice/templates/ingress.yaml",
+      "includeWhen": [
+        "${schema.spec.ingress.enabled}"
+      ]
+    },
+    {
+      "id": "service",
+      "kind": "Service",
+      "source": "microservice/templates/service.yaml"
+    }
+  ]
+}

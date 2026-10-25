@@ -1,0 +1,5 @@
+apiVersion: v2
+name: features
+description: Exercises every chart2kro conversion rule.
+version: 1.0.0
+appVersion: "1.0"

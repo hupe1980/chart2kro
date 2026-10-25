@@ -1,0 +1,6 @@
+# Release image: GoReleaser copies the prebuilt binary for each platform.
+FROM gcr.io/distroless/static:nonroot
+ARG TARGETPLATFORM
+COPY ${TARGETPLATFORM}/chart2kro /chart2kro
+USER nonroot:nonroot
+ENTRYPOINT ["/chart2kro"]

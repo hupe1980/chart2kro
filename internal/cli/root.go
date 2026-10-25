@@ -1,122 +1,134 @@
-// Package cli implements the cobra command tree for chart2kro.
+// Package cli is the chart2kro command line: a thin client of pkg/chart2kro.
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
+	"os"
+	"os/signal"
+	"strings"
 
 	"github.com/spf13/cobra"
 
-	"github.com/hupe1980/chart2kro/internal/config"
-	"github.com/hupe1980/chart2kro/internal/logging"
+	"github.com/hupe1980/chart2kro/pkg/chart2kro"
 )
 
-// ExitError wraps an error with a specific process exit code.
-type ExitError struct {
-	Code int
-	Err  error
+type globals struct {
+	logLevel  string
+	logFormat string
+	quiet     bool
+	stdout    io.Writer
+	stderr    io.Writer
 }
 
-func (e *ExitError) Error() string {
-	if e.Err != nil {
-		return e.Err.Error()
-	}
-
-	return fmt.Sprintf("exit code %d", e.Code)
-}
-
-func (e *ExitError) Unwrap() error { return e.Err }
-
-// Execute builds the command tree, runs it, and returns the exit code.
+// Execute runs the CLI and returns the process exit code.
 func Execute() int {
-	return executeRoot(NewRootCommand())
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+
+	return Run(ctx, os.Args[1:], os.Stdout, os.Stderr)
 }
 
-// executeRoot runs the given root command and returns the process exit code.
-// Errors are printed to the command's stderr since SilenceErrors is enabled.
-func executeRoot(cmd *cobra.Command) int {
-	if err := cmd.Execute(); err != nil {
-		// SilenceErrors is true, so cobra won't print the error.
-		// We print it ourselves to stderr.
-		_, _ = fmt.Fprintln(cmd.ErrOrStderr(), "Error:", err)
+// Run executes the CLI with explicit arguments and streams (used by tests).
+func Run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
+	g := &globals{stdout: stdout, stderr: stderr}
+	root := newRoot(g)
+	root.SetArgs(args)
+	root.SetOut(stdout)
+	root.SetErr(stderr)
 
-		var exitErr *ExitError
-		if errors.As(err, &exitErr) {
-			return exitErr.Code
-		}
-
-		return 1
+	err := root.ExecuteContext(ctx)
+	if err == nil {
+		return 0
 	}
 
-	return 0
+	var usage *usageError
+	if strings.HasPrefix(err.Error(), "unknown command") || strings.HasPrefix(err.Error(), "unknown flag") {
+		err = &usageError{err}
+	}
+
+	if errors.As(err, &usage) {
+		err = fmt.Errorf("%w: %w", chart2kro.ErrUsage, usage.err)
+	}
+
+	if errors.Is(err, context.Canceled) {
+		fmt.Fprintln(stderr, "interrupted")
+		return 130
+	}
+
+	fmt.Fprintln(stderr, "Error:", err)
+
+	return chart2kro.ExitCode(err)
 }
 
-// NewRootCommand constructs the top-level cobra.Command with all
-// subcommands attached.
-func NewRootCommand() *cobra.Command {
-	var cfgFile string
+type usageError struct{ err error }
 
-	cmd := &cobra.Command{
+func (u *usageError) Error() string { return u.err.Error() }
+
+func newRoot(g *globals) *cobra.Command {
+	root := &cobra.Command{
 		Use:   "chart2kro",
-		Short: "Transform Helm charts into KRO ResourceGraphDefinitions",
-		Long: `chart2kro is a CLI tool that transforms Helm charts into KRO
-(Kubernetes Resource Orchestrator) ResourceGraphDefinition resources.
+		Short: "Convert Helm charts into kro ResourceGraphDefinitions",
+		Long: `chart2kro turns a Helm chart into a kro ResourceGraphDefinition.
 
-It reads a Helm chart, renders its templates, and produces a fully
-functional KRO ResourceGraphDefinition that encapsulates the chart's
-Kubernetes resources as a reusable, composable platform abstraction.`,
+kro accepts every RGD it writes (checked offline with kro's own validator). An
+instance created with the chart's defaults deploys what 'helm template' deploys,
+and every input it exposes was seen to behave like the chart value it replaces.
+Every value that is not exposed is reported with the reason.`,
 		SilenceUsage:  true,
 		SilenceErrors: true,
-		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
-			cfg, err := config.Load(cmd, cfgFile)
-			if err != nil {
-				return &ExitError{Code: 2, Err: err}
-			}
-
-			logger := logging.Setup(cfg)
-
-			ctx := cmd.Context()
-			ctx = config.NewContext(ctx, cfg)
-			ctx = logging.NewContext(ctx, logger)
-			cmd.SetContext(ctx)
-
-			logger.Debug("configuration loaded",
-				slog.String("logLevel", cfg.LogLevel),
-				slog.String("logFormat", cfg.LogFormat),
-			)
-
-			return nil
-		},
 	}
 
-	// Global persistent flags.
-	pf := cmd.PersistentFlags()
-	pf.StringVar(&cfgFile, "config", "", "config file (default: .chart2kro.yaml)")
-	pf.String("log-level", "info", "log level: debug, info, warn, error")
-	pf.String("log-format", "text", "log format: text, json")
-	pf.Bool("no-color", false, "disable colored output")
-	pf.BoolP("quiet", "q", false, "suppress non-essential output")
+	root.SetFlagErrorFunc(func(_ *cobra.Command, err error) error { return &usageError{err} })
 
-	// Flag parsing errors return exit code 2.
-	cmd.SetFlagErrorFunc(func(_ *cobra.Command, err error) error {
-		return &ExitError{Code: 2, Err: err}
-	})
+	pf := root.PersistentFlags()
+	pf.StringVar(&g.logLevel, "log-level", "warn", "log level: debug, info, warn, error")
+	pf.StringVar(&g.logFormat, "log-format", "text", "log format: text, json")
+	pf.BoolVarP(&g.quiet, "quiet", "q", false, "print only results and errors")
 
-	// Register subcommands.
-	cmd.AddCommand(
-		newVersionCommand(),
-		newConvertCommand(),
-		newInspectCommand(),
-		newValidateCommand(),
-		newExportCommand(),
-		newDiffCommand(),
-		newAuditCommand(),
-		newDocsCommand(),
-		newPlanCommand(),
-		newWatchCommand(),
-		newCompletionCommand(),
+	root.AddCommand(
+		newConvertCmd(g),
+		newInspectCmd(g),
+		newValidateCmd(g),
+		newDiffCmd(g),
+		newInstanceCmd(g),
+		newVersionCmd(g),
 	)
 
-	return cmd
+	return root
+}
+
+func (g *globals) logger() (*slog.Logger, error) {
+	var lvl slog.Level
+	if err := lvl.UnmarshalText([]byte(g.logLevel)); err != nil {
+		return nil, &usageError{fmt.Errorf("--log-level %q: %w", g.logLevel, err)}
+	}
+
+	if g.quiet && lvl < slog.LevelError {
+		lvl = slog.LevelError
+	}
+
+	opts := &slog.HandlerOptions{Level: lvl}
+
+	switch g.logFormat {
+	case "text":
+		return slog.New(slog.NewTextHandler(g.stderr, opts)), nil
+	case "json":
+		return slog.New(slog.NewJSONHandler(g.stderr, opts)), nil
+	default:
+		return nil, &usageError{fmt.Errorf("--log-format %q: want text or json", g.logFormat)}
+	}
+}
+
+func exactArgs(n int) cobra.PositionalArgs {
+	return func(cmd *cobra.Command, args []string) error {
+		if err := cobra.ExactArgs(n)(cmd, args); err != nil {
+			return &usageError{err}
+		}
+
+		return nil
+	}
 }

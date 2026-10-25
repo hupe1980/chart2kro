@@ -1,0 +1,70 @@
+apiVersion: kro.run/v1alpha1
+kind: ResourceGraphDefinition
+metadata:
+  name: webapp
+spec:
+  schema:
+    apiVersion: v1alpha1
+    kind: WebApp
+    spec:
+      image: string | default="ghcr.io/stefanprodan/podinfo:6.15.0"
+      replicas: integer | default=2 minimum=1
+      port: integer | default=9898
+      service:
+        enabled: boolean | default=true
+        type: string | default=ClusterIP
+    status:
+      availableReplicas: ${deployment.status.availableReplicas}
+      clusterIP: ${service.spec.clusterIP}
+  resources:
+  - id: deployment
+    readyWhen:
+    - ${deployment.status.availableReplicas == deployment.spec.replicas}
+    template:
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: ${schema.metadata.name}
+        labels:
+          app.kubernetes.io/name: ${schema.metadata.name}
+      spec:
+        replicas: ${schema.spec.replicas}
+        selector:
+          matchLabels:
+            app.kubernetes.io/name: ${schema.metadata.name}
+        template:
+          metadata:
+            labels:
+              app.kubernetes.io/name: ${schema.metadata.name}
+          spec:
+            containers:
+            - name: app
+              image: ${schema.spec.imagee}
+              ports:
+              - name: http
+                containerPort: ${schema.spec.port}
+  - id: service
+    includeWhen:
+    - ${schema.spec.service.enabled}
+    template:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: ${schema.metadata.name}-svc
+      spec:
+        type: ${schema.spec.service.type}
+        selector:
+          app.kubernetes.io/name: ${schema.metadata.name}
+        ports:
+        - name: http
+          port: ${schema.spec.port}
+          targetPort: http
+  - id: config
+    template:
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: ${schema.metadata.name}-info
+      data:
+        deploymentName: ${deployment.metadata.name}
+        availableReplicas: ${string(deployment.status.availableReplicas)}

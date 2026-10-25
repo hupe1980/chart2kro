@@ -1,0 +1,138 @@
+apiVersion: kro.run/v1alpha1
+kind: ResourceGraphDefinition
+metadata:
+  name: with-database
+  annotations:
+    chart2kro.io/chart: with-database-1.0.0
+  labels:
+    app.kubernetes.io/managed-by: chart2kro
+spec:
+  resources:
+    - id: statefulSet
+      includeWhen:
+        - ${schema.spec.postgresql.enabled}
+      readyWhen:
+        - ${statefulSet.status.?readyReplicas.orValue(0) == statefulSet.spec.?replicas.orValue(1)}
+      template:
+        apiVersion: apps/v1
+        kind: StatefulSet
+        metadata:
+          name: ${schema.metadata.name}-postgresql
+          labels:
+            app.kubernetes.io/component: database
+        spec:
+          replicas: 1
+          selector:
+            matchLabels:
+              app: postgresql
+              app.kubernetes.io/instance: ${schema.metadata.name}
+          serviceName: ${schema.metadata.name}-postgresql
+          template:
+            metadata:
+              labels:
+                app: postgresql
+                app.kubernetes.io/component: database
+                app.kubernetes.io/instance: ${schema.metadata.name}
+            spec:
+              containers:
+                - name: postgresql
+                  env:
+                    - name: POSTGRES_USER
+                      value: ${schema.spec.postgresql.auth.username}
+                    - name: POSTGRES_DB
+                      value: ${schema.spec.postgresql.auth.database}
+                  image: postgres:15
+                  ports:
+                    - containerPort: 5432
+    - id: servicePostgresql
+      includeWhen:
+        - ${schema.spec.postgresql.enabled}
+      template:
+        apiVersion: v1
+        kind: Service
+        metadata:
+          name: ${schema.metadata.name}-postgresql
+          labels:
+            app.kubernetes.io/component: database
+        spec:
+          ports:
+            - port: 5432
+              targetPort: 5432
+          selector:
+            app: postgresql
+            app.kubernetes.io/instance: ${schema.metadata.name}
+          type: ClusterIP
+    - id: secret
+      includeWhen:
+        - ${schema.spec.postgresql.enabled}
+      template:
+        apiVersion: v1
+        kind: Secret
+        metadata:
+          name: ${schema.metadata.name}-postgresql
+          labels:
+            app.kubernetes.io/component: database
+        stringData:
+          postgresql-password: ${schema.spec.postgresql.auth.password}
+        type: Opaque
+    - id: deployment
+      readyWhen:
+        - ${deployment.status.?availableReplicas.orValue(0) == deployment.spec.?replicas.orValue(1)}
+      template:
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: ${schema.metadata.name}-webapp
+        spec:
+          replicas: ${schema.spec.replicaCount}
+          selector:
+            matchLabels:
+              app: webapp
+              app.kubernetes.io/instance: ${schema.metadata.name}
+          template:
+            metadata:
+              labels:
+                app: webapp
+                app.kubernetes.io/instance: ${schema.metadata.name}
+            spec:
+              containers:
+                - name: webapp
+                  env:
+                    - name: DB_HOST
+                      value: ${schema.metadata.name}-postgresql
+                    - name: DB_PORT
+                      value: "5432"
+                  image: ${schema.spec.image.repository}:${schema.spec.image.tag}
+                  ports:
+                    - containerPort: ${schema.spec.service.port}
+    - id: serviceWebapp
+      template:
+        apiVersion: v1
+        kind: Service
+        metadata:
+          name: ${schema.metadata.name}-webapp
+        spec:
+          ports:
+            - port: ${schema.spec.service.port}
+              targetPort: ${schema.spec.service.port}
+          selector:
+            app: webapp
+            app.kubernetes.io/instance: ${schema.metadata.name}
+          type: ClusterIP
+  schema:
+    apiVersion: v1alpha1
+    kind: WithDatabase
+    group: kro.run
+    spec:
+      image:
+        repository: string | default="myapp"
+        tag: string | default="2.0"
+      postgresql:
+        auth:
+          database: string | default="myapp_production"
+          password: string | default="changeme"
+          username: string | default="myapp"
+        enabled: boolean | default=true
+      replicaCount: integer | default=1
+      service:
+        port: integer | default=8080

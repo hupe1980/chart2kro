@@ -26,6 +26,11 @@ linters:
     - bodyclose
     - exhaustive
   settings:
+    errcheck:
+      exclude-functions:
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
     revive:
       rules:
         - name: blank-imports
@@ -54,6 +59,10 @@ linters:
         linters:
           - gosec
           - errcheck
+      # Local dev tools under hack/ read paths given on their command line.
+      - path: ^hack/
+        linters:
+          - gosec
       # Allow dot-imports for testify in tests.
       - path: _test\.go
         text: "dot-imports"

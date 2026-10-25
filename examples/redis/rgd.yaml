@@ -1,159 +1,143 @@
 apiVersion: kro.run/v1alpha1
 kind: ResourceGraphDefinition
 metadata:
+  name: redis
   annotations:
-    chart2kro.dev/generated: "true"
+    chart2kro.io/chart: redis-0.1.0
   labels:
     app.kubernetes.io/managed-by: chart2kro
-    app.kubernetes.io/name: redis
-    app.kubernetes.io/version: 0.1.0
-  name: redis
 spec:
   resources:
-  - id: configmap
-    template:
-      apiVersion: v1
-      data:
-        redis.conf: |
-          maxmemory-policy allkeys-lru
-          appendonly yes
-          appendfilename "appendonly.aof"
-          save 900 1
-          save 300 10
-          save 60 10000
-      kind: ConfigMap
-      metadata:
-        labels:
-          app.kubernetes.io/instance: release
-          app.kubernetes.io/name: redis
-        name: release-redis-config
-        namespace: default
-  - dependsOn:
-    - configmap
-    id: statefulset
-    readyWhen:
-    - ${self.status.readyReplicas == self.status.replicas}
-    template:
-      apiVersion: apps/v1
-      kind: StatefulSet
-      metadata:
-        labels:
-          app.kubernetes.io/instance: release
-          app.kubernetes.io/name: redis
-        name: release-redis
-        namespace: default
-      spec:
-        replicas: 1
-        selector:
-          matchLabels:
-            app.kubernetes.io/instance: release
+    - id: configMap
+      template:
+        apiVersion: v1
+        kind: ConfigMap
+        metadata:
+          name: ${schema.metadata.name}-redis-config
+          labels:
+            app.kubernetes.io/instance: ${schema.metadata.name}
             app.kubernetes.io/name: redis
-        serviceName: release-redis-headless
-        template:
-          metadata:
-            labels:
-              app.kubernetes.io/instance: release
+        data:
+          redis.conf: |
+            maxmemory-policy ${schema.spec.maxmemoryPolicy}
+            appendonly yes
+            appendfilename "appendonly.aof"
+            save 900 1
+            save 300 10
+            save 60 10000
+    - id: service
+      template:
+        apiVersion: v1
+        kind: Service
+        metadata:
+          name: ${schema.metadata.name}-redis
+          labels:
+            app.kubernetes.io/instance: ${schema.metadata.name}
+            app.kubernetes.io/name: redis
+        spec:
+          ports:
+            - name: redis
+              port: ${schema.spec.service.port}
+              protocol: TCP
+              targetPort: redis
+          selector:
+            app.kubernetes.io/instance: ${schema.metadata.name}
+            app.kubernetes.io/name: redis
+          type: ${schema.spec.service.type}
+    - id: serviceHeadless
+      template:
+        apiVersion: v1
+        kind: Service
+        metadata:
+          name: ${schema.metadata.name}-redis-headless
+          labels:
+            app.kubernetes.io/instance: ${schema.metadata.name}
+            app.kubernetes.io/name: redis
+        spec:
+          clusterIP: None
+          ports:
+            - name: redis
+              port: ${schema.spec.service.port}
+              protocol: TCP
+              targetPort: redis
+          selector:
+            app.kubernetes.io/instance: ${schema.metadata.name}
+            app.kubernetes.io/name: redis
+          type: ClusterIP
+    - id: statefulSet
+      readyWhen:
+        - ${statefulSet.status.?readyReplicas.orValue(0) == statefulSet.spec.?replicas.orValue(1)}
+      template:
+        apiVersion: apps/v1
+        kind: StatefulSet
+        metadata:
+          name: ${schema.metadata.name}-redis
+          labels:
+            app.kubernetes.io/instance: ${schema.metadata.name}
+            app.kubernetes.io/name: redis
+        spec:
+          replicas: 1
+          selector:
+            matchLabels:
+              app.kubernetes.io/instance: ${schema.metadata.name}
               app.kubernetes.io/name: redis
-          spec:
-            containers:
-            - command:
-              - redis-server
-              - /etc/redis/redis.conf
-              image: ${schema.spec.image.repository}:${schema.spec.image.tag}
-              imagePullPolicy: ${schema.spec.image.pullPolicy}
-              livenessProbe:
-                initialDelaySeconds: 15
-                periodSeconds: 10
-                tcpSocket:
-                  port: redis
-              name: redis
-              ports:
-              - containerPort: 6379
-                name: redis
-                protocol: TCP
-              readinessProbe:
-                initialDelaySeconds: 5
-                periodSeconds: 5
-                tcpSocket:
-                  port: redis
-              resources:
-                limits:
-                  cpu: ${schema.spec.resources.limits.cpu}
-                  memory: ${schema.spec.resources.limits.memory}
-                requests:
-                  cpu: ${schema.spec.resources.requests.cpu}
-                  memory: ${schema.spec.resources.requests.memory}
-              volumeMounts:
-              - mountPath: /etc/redis
-                name: redis-config
-              - mountPath: /data
+          serviceName: ${schema.metadata.name}-redis-headless
+          template:
+            metadata:
+              labels:
+                app.kubernetes.io/instance: ${schema.metadata.name}
+                app.kubernetes.io/name: redis
+            spec:
+              containers:
+                - name: redis
+                  command:
+                    - redis-server
+                    - /etc/redis/redis.conf
+                  image: ${schema.spec.image.repository}:${schema.spec.image.tag}
+                  imagePullPolicy: ${schema.spec.image.pullPolicy}
+                  livenessProbe:
+                    initialDelaySeconds: 15
+                    periodSeconds: 10
+                    tcpSocket:
+                      port: redis
+                  ports:
+                    - name: redis
+                      containerPort: 6379
+                      protocol: TCP
+                  readinessProbe:
+                    initialDelaySeconds: 5
+                    periodSeconds: 5
+                    tcpSocket:
+                      port: redis
+                  resources:
+                    limits:
+                      cpu: ${schema.spec.resources.limits.cpu}
+                      memory: ${schema.spec.resources.limits.memory}
+                    requests:
+                      cpu: ${schema.spec.resources.requests.cpu}
+                      memory: ${schema.spec.resources.requests.memory}
+                  volumeMounts:
+                    - name: redis-config
+                      mountPath: /etc/redis
+                    - name: redis-data
+                      mountPath: /data
+              volumes:
+                - name: redis-config
+                  configMap:
+                    name: ${schema.metadata.name}-redis-config
+          volumeClaimTemplates:
+            - metadata:
                 name: redis-data
-            volumes:
-            - configMap:
-                name: release-redis-config
-              name: redis-config
-        volumeClaimTemplates:
-        - metadata:
-            name: redis-data
-          spec:
-            accessModes:
-            - ReadWriteOnce
-            resources:
-              requests:
-                storage: ${schema.spec.persistence.size}
-            storageClassName: ${schema.spec.persistence.storageClass}
-  - dependsOn:
-    - statefulset
-    id: service-headless
-    readyWhen:
-    - ${self.spec.clusterIP != ""}
-    template:
-      apiVersion: v1
-      kind: Service
-      metadata:
-        labels:
-          app.kubernetes.io/instance: release
-          app.kubernetes.io/name: redis
-        name: release-redis-headless
-        namespace: default
-      spec:
-        clusterIP: None
-        ports:
-        - name: redis
-          port: ${schema.spec.service.port}
-          protocol: TCP
-          targetPort: redis
-        selector:
-          app.kubernetes.io/instance: release
-          app.kubernetes.io/name: redis
-        type: ClusterIP
-  - dependsOn:
-    - statefulset
-    id: service-redis
-    readyWhen:
-    - ${self.spec.clusterIP != ""}
-    template:
-      apiVersion: v1
-      kind: Service
-      metadata:
-        labels:
-          app.kubernetes.io/instance: release
-          app.kubernetes.io/name: redis
-        name: release-redis
-        namespace: default
-      spec:
-        ports:
-        - name: redis
-          port: ${schema.spec.service.port}
-          protocol: TCP
-          targetPort: redis
-        selector:
-          app.kubernetes.io/instance: release
-          app.kubernetes.io/name: redis
-        type: ${schema.spec.service.type}
+              spec:
+                accessModes:
+                  - ReadWriteOnce
+                resources:
+                  requests:
+                    storage: ${schema.spec.persistence.size}
   schema:
-    apiVersion: redis.redis.kro.run/v1alpha1
-    kind: RedisCache
+    apiVersion: v1alpha1
+    kind: Redis
+    group: kro.run
     spec:
       image:
         pullPolicy: string | default="IfNotPresent"
@@ -161,8 +145,7 @@ spec:
         tag: string | default="7.4-alpine"
       maxmemoryPolicy: string | default="allkeys-lru"
       persistence:
-        size: string | default="1Gi"
-        storageClass: string
+        size: string | default="1Gi" immutable=true
       resources:
         limits:
           cpu: string | default="500m"
@@ -173,10 +156,3 @@ spec:
       service:
         port: integer | default=6379
         type: string | default="ClusterIP"
-    status:
-      service-headlessClusterIP: ${service-headless.spec.clusterIP}
-      service-headlessLoadBalancerIP: ${service-headless.status.loadBalancer.?ingress[0].?ip}
-      service-redisClusterIP: ${service-redis.spec.clusterIP}
-      service-redisLoadBalancerIP: ${service-redis.status.loadBalancer.?ingress[0].?ip}
-      statefulsetCurrentReplicas: ${statefulset.status.currentReplicas}
-      statefulsetReadyReplicas: ${statefulset.status.readyReplicas}
