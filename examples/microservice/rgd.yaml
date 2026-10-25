@@ -144,20 +144,20 @@ spec:
     group: kro.run
     spec:
       autoscaling:
-        maxReplicas: integer | default=10
-        minReplicas: integer | default=2
-        targetCPUUtilization: integer | default=75
+        maxReplicas: integer | default=10 description="Maximum number of pods"
+        minReplicas: integer | default=2 description="Minimum number of pods"
+        targetCPUUtilization: integer | default=75 description="Target average CPU utilization (percent)"
       env:
         APP_PORT: string | default="8080"
         LOG_LEVEL: string | default="info"
       image:
-        pullPolicy: string | default="IfNotPresent"
-        repository: string | default="myorg/api-server"
-        tag: string | default="1.0.0"
+        pullPolicy: string | default="IfNotPresent" description="Image pull policy"
+        repository: string | default="myorg/api-server" description="Container image repository"
+        tag: string | default="1.0.0" description="Container image tag"
       ingress:
-        className: string | default="nginx"
-        enabled: boolean | default=true
-        host: string | default="api.example.com"
+        className: string | default="nginx" description="IngressClass to use"
+        enabled: boolean | default=true description="Create an Ingress"
+        host: string | default="api.example.com" description="Host name routed to the service"
       resources:
         limits:
           memory: string | default="512Mi"
@@ -165,5 +165,5 @@ spec:
           cpu: string | default="200m"
           memory: string | default="256Mi"
       service:
-        port: integer | default=8080
-        type: string | default="ClusterIP"
+        port: integer | default=8080 description="Port the service and container listen on"
+        type: string | default="ClusterIP" description="Service type"

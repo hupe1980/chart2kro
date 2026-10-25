@@ -17,9 +17,11 @@ import (
 
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	apiextensionsvalidation "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/validation"
 	structuralschema "k8s.io/apiextensions-apiserver/pkg/apiserver/schema"
 	"k8s.io/apiextensions-apiserver/pkg/apiserver/schema/cel"
 	structuraldefaulting "k8s.io/apiextensions-apiserver/pkg/apiserver/schema/defaulting"
+	"k8s.io/apiextensions-apiserver/pkg/apiserver/schema/listtype"
 	structuralpruning "k8s.io/apiextensions-apiserver/pkg/apiserver/schema/pruning"
 	apiservervalidation "k8s.io/apiextensions-apiserver/pkg/apiserver/validation"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -177,7 +179,33 @@ func (v *Validator) Validate(ctx context.Context, rgd map[string]any) (*graph.Gr
 		return nil, &Error{Problems: []string{err.Error()}}
 	}
 
+	// The API server validates the CRD kro generates; a schema it rejects keeps the
+	// RGD Inactive on a live cluster although kro's builder accepted it.
+	if problems := validateCRD(ctx, g.CRD); len(problems) > 0 {
+		return nil, &Error{Problems: problems}
+	}
+
 	return g, nil
+}
+
+// validateCRD applies the API server's CRD validation to a generated CRD.
+func validateCRD(ctx context.Context, crd *extv1.CustomResourceDefinition) []string {
+	c := crd.DeepCopy()
+	extv1.SetObjectDefaults_CustomResourceDefinition(c)
+
+	var internal apiextensions.CustomResourceDefinition
+	if err := extv1.Convert_v1_CustomResourceDefinition_To_apiextensions_CustomResourceDefinition(c, &internal, nil); err != nil {
+		return []string{"generated CRD: " + err.Error()}
+	}
+
+	var problems []string
+	for _, e := range apiextensionsvalidation.ValidateCustomResourceDefinition(ctx, &internal) {
+		problems = append(problems, "generated CRD "+c.Name+": "+e.Error())
+	}
+
+	sort.Strings(problems)
+
+	return problems
 }
 
 // ValidateYAML parses and validates every ResourceGraphDefinition in a YAML stream.
@@ -261,6 +289,8 @@ func (v *CRDValidator) Validate(ctx context.Context, obj map[string]any) (unknow
 	unknown = structuralpruning.PruneWithOptions(obj, v.structural, true,
 		structuralschema.UnknownFieldPathOptions{TrackUnknownFieldPaths: true})
 	errs = apiservervalidation.ValidateCustomResource(nil, obj, v.validator)
+	// List types (x-kubernetes-list-type set/map): duplicates are rejected, as by the API server.
+	errs = append(errs, listtype.ValidateListSetsAndMaps(nil, v.structural, obj)...)
 
 	if v.cel != nil {
 		celErrs, _ := v.cel.Validate(ctx, nil, v.structural, obj, nil, celconfig.RuntimeCELCostBudget)

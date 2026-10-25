@@ -1,0 +1,9 @@
+{{- range $i, $w := .Values.workers }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $.Release.Name }}-worker-{{ $i }}
+data:
+  size: {{ $w.size | quote }}
+{{- end }}

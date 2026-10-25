@@ -10,6 +10,7 @@ just golden    # rewrite golden files after an intended output change; review th
 just corpus    # convert real-world charts (network, a few minutes)
 just e2e       # kind + kro: RGDs become Active, instances are isolated
 just vuln      # govulncheck
+go test ./internal/rgd -run '^$' -fuzz FuzzEscapedLiteralRoundTrip   # when changing escaping
 just site      # documentation site with live reload (needs zola)
 ```
 
@@ -37,6 +38,8 @@ internal/manifest   tree operations
 internal/yamlx      faithful YAML encoding
 internal/rgddiff    API change classification
 internal/version    build information
+action/             GitHub Action scripts (action.yml at the root)
+site/               website and docs (Zola)
 ```
 
 The website and documentation live in `site/` ([Zola](https://www.getzola.org)): pages in `site/content/docs/`, the landing page in `site/content/_index.md` and `site/templates/index.html`. CI builds it on every PR and publishes it from `main`.

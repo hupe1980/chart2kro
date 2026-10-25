@@ -1,0 +1,9 @@
+{{- range .Values.extraQueues }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $.Release.Name }}-extra-{{ . }}
+data:
+  image: {{ $.Values.loopImage }}
+{{- end }}

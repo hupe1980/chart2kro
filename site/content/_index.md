@@ -61,12 +61,12 @@ text = "An instance with the defaults deploys what `helm template` deploys for t
 [[extra.features]]
 icon = "🔬"
 title = "Verified inputs"
-text = "A value becomes an input only after kro's runtime, run offline, reproduced Helm's output for it at several probe values."
+text = "A value becomes an input only after kro's runtime, run offline, reproduced Helm's output for it. Loops over lists become kro collections."
 
 [[extra.features]]
 icon = "📋"
 title = "Every decision explained"
-text = "Values that are not exposed are listed as *frozen*, *failed* or *unused*, with a stable reason code and what to do about it."
+text = "Inputs carry the chart's own `values.yaml` docs. Values that are not exposed are listed with a stable reason code and what to do about it."
 
 [[extra.features]]
 icon = "🧱"
@@ -101,8 +101,8 @@ code = "chart2kro convert ./app \\\n  -f platform.yaml \\\n  --expose 'image.tag
 
 [[extra.usecases]]
 title = "🚦 Keep it current in CI"
-text = "Fail the build when the committed RGD is stale, or when a chart upgrade would break existing instances."
-code = "chart2kro convert ./app -o api/ --check\nchart2kro diff ./app --version 2.0.0 \\\n  --against api/rgd.yaml"
+text = "One step in a pull request: fail when the committed RGD is stale or a chart upgrade would break existing instances."
+code = "- uses: hupe1980/chart2kro@v0.2.0\n  with:\n    chart: charts/app\n    output-dir: api"
 
 [[extra.usecases]]
 title = "🚚 Move releases to kro"
@@ -115,7 +115,7 @@ a = "No. Loading, rendering, validation and verification all run in-process. You
 
 [[extra.faq]]
 q = "Which kro versions are supported?"
-a = "The generated RGDs need kro v0.9.1 or newer. chart2kro validates with the kro v0.9.4 libraries, and its end-to-end tests run on both v0.9.1 and v0.9.4."
+a = "The generated RGDs need kro v0.9.2 or newer. chart2kro validates with the kro v0.9.4 libraries, and its end-to-end tests run on both v0.9.2 and v0.9.4."
 
 [[extra.faq]]
 q = "What happens to values chart2kro cannot translate?"

@@ -67,6 +67,15 @@ func Compare(old, updated map[string]any) *Result {
 	}
 
 	compareFields(r, "spec", asMap(get(os, "spec")), asMap(get(ns, "spec")))
+
+	// Element types of collection lists: their fields are part of the instance API.
+	ot, nt := asMap(get(os, "types")), asMap(get(ns, "types"))
+	for name := range ot {
+		if _, ok := nt[name]; ok {
+			compareFields(r, "spec.schema.types."+name, asMap(ot[name]), asMap(nt[name]))
+		}
+	}
+
 	compareResources(r, old, updated)
 
 	sort.SliceStable(r.Changes, func(i, j int) bool {

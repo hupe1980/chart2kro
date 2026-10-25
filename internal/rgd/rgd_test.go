@@ -174,3 +174,25 @@ func TestMarkersAcceptedByKro(t *testing.T) {
 	_, err = oracle.Instantiate(context.Background(), g, "x", "ns", nil)
 	require.Error(t, err, "required field missing")
 }
+
+// Descriptions must reach the generated CRD unchanged, whatever the comment contains.
+func TestDescriptionMarkerReachesCRD(t *testing.T) {
+	texts := []string{"Number of replicas", `Say "hi" | pipe`, `back\slash`, "Literal ${schema.spec.x} stays text", "ünïcödé…"}
+
+	spec := map[string]any{}
+	for i, d := range texts {
+		k := "v" + string(rune('a'+i))
+		spec[k] = marker(Field{Path: []string{k}, Type: "string", Default: "x", Description: d})
+	}
+
+	val, err := kroval.New("", nil)
+	require.NoError(t, err)
+
+	g, err := val.Validate(context.Background(), rgdWith(spec, configMap(map[string]any{"k": "v"})))
+	require.NoError(t, err)
+
+	props := g.CRD.Spec.Versions[0].Schema.OpenAPIV3Schema.Properties["spec"].Properties
+	for i, d := range texts {
+		require.Equal(t, d, props["v"+string(rune('a'+i))].Description)
+	}
+}

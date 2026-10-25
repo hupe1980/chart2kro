@@ -1,17 +1,26 @@
 image:
+  # -- Container image repository
   repository: redis
+  # -- Container image tag
   tag: "7.4-alpine"
+  # -- Image pull policy
   pullPolicy: IfNotPresent
 
+# -- Redis password; empty disables authentication
 password: ""
 
 persistence:
+  # -- Store data on a PersistentVolumeClaim
   enabled: true
+  # -- Size of the data volume (immutable after creation)
   size: 1Gi
+  # -- StorageClass of the data volume; empty uses the cluster default
   storageClass: ""
 
 service:
+  # -- Service type
   type: ClusterIP
+  # -- Redis port
   port: 6379
 
 resources:
@@ -22,4 +31,5 @@ resources:
     cpu: 500m
     memory: 512Mi
 
+# -- Eviction policy when maxmemory is reached
 maxmemoryPolicy: allkeys-lru

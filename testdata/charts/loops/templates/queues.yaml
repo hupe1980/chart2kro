@@ -1,0 +1,16 @@
+{{- range .Values.queues }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $.Release.Name }}-queue-{{ . }}
+data:
+  queue: {{ . }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $.Release.Name }}-queue-{{ . }}
+stringData:
+  topic: {{ printf "topic-%s" . }}
+{{- end }}

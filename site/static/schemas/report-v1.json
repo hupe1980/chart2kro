@@ -48,14 +48,16 @@
             "enum": [
               "render-failed", "changes-structure", "transformed", "adds-or-removes-objects", "toggles-fields",
               "branch-types-differ", "null-default", "key-not-addressable", "shares-field", "verification-mismatch",
-              "kro-type-check", "unknown-kind", "affects-only-dropped-objects", "user-secret"
+              "kro-type-check", "unknown-kind", "affects-only-dropped-objects", "user-secret",
+              "range-over-map", "conditional-loop-body", "loop-shares-template", "nested-loop", "loop-element-structure", "loop-shape-unknown"
             ]
           },
           "detail": { "type": "string" },
-          "kind": { "enum": ["reference", "interpolation", "conditional", "whole"] },
-          "type": { "enum": ["boolean", "integer", "float", "string", "[]string", "[]object", "object"] },
+          "kind": { "enum": ["reference", "interpolation", "conditional", "whole", "collection"] },
+          "type": { "anyOf": [ { "enum": ["boolean", "integer", "float", "string", "[]string", "[]object", "object"] }, { "type": "string", "pattern": "^\\[\\][A-Z][A-Za-z0-9]*Entry$", "description": "list of a collection element type" } ] },
           "default": {},
-          "targets": { "type": "array", "items": { "type": "string", "description": "<resourceId>.<field path>" } }
+          "targets": { "type": "array", "items": { "type": "string", "description": "<resourceId>.<field path>" } },
+          "description": { "type": "string", "description": "from the chart's values.yaml comments" }
         },
         "allOf": [
           { "if": { "properties": { "outcome": { "const": "exposed" } } }, "then": { "required": ["kind", "type"] } },
@@ -74,7 +76,8 @@
           "kind": { "type": "string" },
           "source": { "type": "string" },
           "includeWhen": { "type": "array", "items": { "type": "string" } },
-          "isolated": { "type": "boolean" }
+          "isolated": { "type": "boolean" },
+          "forEach": { "type": "string", "description": "the iterated list (collections only), e.g. spec.tenants" }
         }
       }
     },

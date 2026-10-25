@@ -1,0 +1,45 @@
+# Object list: one ConfigMap per tenant, named by .name (collection, listMapKey=name).
+tenants:
+  - name: alpha
+    quota: "10"
+    tier: gold
+
+# Object list with secrets: one Secret per credential.
+credentials:
+  - name: db
+    password: changeme
+
+# String list, two documents per entry (ConfigMap + Secret).
+queues:
+  - orders
+
+# Object list named by the loop index.
+workers:
+  - size: 1
+
+# Empty string list: converted with an example entry; loopImage is used only inside it.
+extraQueues: []
+loopImage: busybox:1.36
+
+# Unsupported shapes, frozen with reasons.
+regions: {}
+teams:
+  - name: core
+    enabled: true
+zones:
+  - eu
+groups:
+  - name: ops
+    members:
+      - ana
+profiles: []
+
+# An empty list that feeds fields, not objects: not a loop.
+extraArgs: []
+
+# A loop of Deployments behind a flag: includeWhen, readiness and isolation.
+workloads:
+  enabled: true
+  apps:
+    - name: api
+      replicas: 1

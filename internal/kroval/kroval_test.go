@@ -128,3 +128,78 @@ func TestEveryCatalogValidates(t *testing.T) {
 		require.NoError(t, err, kv)
 	}
 }
+
+func TestListTypesRejectDuplicates(t *testing.T) {
+	v, err := New("", nil)
+	require.NoError(t, err)
+
+	var rgd map[string]any
+	require.NoError(t, yaml.Unmarshal([]byte(`
+apiVersion: kro.run/v1alpha1
+kind: ResourceGraphDefinition
+metadata: {name: lists}
+spec:
+  schema:
+    apiVersion: v1alpha1
+    kind: Lists
+    types:
+      Entry: {name: string | required=true}
+    spec:
+      names: '[]string | default=[] listType=set'
+      entries: '[]Entry | default=[] listType=map listMapKey=name'
+  resources:
+    - id: cm
+      template: {apiVersion: v1, kind: ConfigMap, metadata: {name: x}}
+`), &rgd))
+
+	g, err := v.Validate(context.Background(), rgd)
+	require.NoError(t, err)
+
+	crd, err := NewCRDValidator(g.CRD, "v1alpha1")
+	require.NoError(t, err)
+
+	for _, spec := range []map[string]any{
+		{"names": []any{"a", "a"}},
+		{"entries": []any{map[string]any{"name": "a"}, map[string]any{"name": "a"}}},
+	} {
+		_, errs := crd.Validate(context.Background(), map[string]any{
+			"apiVersion": "kro.run/v1alpha1", "kind": "Lists", "metadata": map[string]any{"name": "x"}, "spec": spec,
+		})
+		require.NotEmpty(t, errs, "%v", spec)
+	}
+
+	_, errs := crd.Validate(context.Background(), map[string]any{
+		"apiVersion": "kro.run/v1alpha1", "kind": "Lists", "metadata": map[string]any{"name": "x"},
+		"spec": map[string]any{"names": []any{"a", "b"}},
+	})
+	require.Empty(t, errs)
+}
+
+// The API server's CRD validation runs offline: a schema kro's builder accepts but the
+// API server rejects (here a set of objects without atomic items) fails validation.
+func TestGeneratedCRDIsValidated(t *testing.T) {
+	v, err := New("", nil)
+	require.NoError(t, err)
+
+	var rgd map[string]any
+	require.NoError(t, yaml.Unmarshal([]byte(`
+apiVersion: kro.run/v1alpha1
+kind: ResourceGraphDefinition
+metadata: {name: sets}
+spec:
+  schema:
+    apiVersion: v1alpha1
+    kind: Sets
+    types:
+      Entry: {size: integer | required=true}
+    spec:
+      entries: '[]Entry | default=[] listType=set'
+  resources:
+    - id: cm
+      template: {apiVersion: v1, kind: ConfigMap, metadata: {name: x}}
+`), &rgd))
+
+	_, err = v.Validate(context.Background(), rgd)
+	require.ErrorContains(t, err, "generated CRD")
+	require.ErrorContains(t, err, "must be atomic")
+}

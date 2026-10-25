@@ -108,6 +108,10 @@ func explain(w io.Writer, r *chart2kro.Report, path string) error {
 
 		fmt.Fprintf(w, "%s: %s\n", v.Path, v.Outcome)
 
+		if v.Description != "" {
+			fmt.Fprintf(w, "  %s\n", v.Description)
+		}
+
 		if v.Outcome == "exposed" {
 			fmt.Fprintf(w, "  spec field: spec.%s (%s, default %v)\n", v.Path, v.Type, v.Default)
 			fmt.Fprintf(w, "  how:        %s\n", v.Kind)
@@ -371,7 +375,7 @@ func newVersionCmd(g *globals) *cobra.Command {
 				"buildDate":    version.BuildDate(),
 				"go":           runtime.Version(),
 				"kro":          kroval.KroVersion(),
-				"minKro":       "v0.9.1",
+				"minKro":       "v0.9.2",
 				"kubeVersions": strings.Join(kroval.KubeVersions(), ","),
 			}
 

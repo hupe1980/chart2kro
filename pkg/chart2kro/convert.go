@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -69,10 +70,12 @@ type conversion struct {
 	values    map[string]any // merged: chart defaults ⊕ user values (the API's defaults)
 	defaults  map[string]any // chart defaults only
 	validator *kroval.Validator
-	kind      string
-	group     string
-	version   string
-	warnings  []string
+	// descriptions are value descriptions from values.yaml comments.
+	descriptions map[string]string
+	kind         string
+	group        string
+	version      string
+	warnings     []string
 }
 
 func newConversion(ctx context.Context, o Options) (*conversion, error) {
@@ -117,7 +120,7 @@ func newConversion(ctx context.Context, o Options) (*conversion, error) {
 		return nil, fmt.Errorf("%w: %w", ErrRender, err)
 	}
 
-	c := &conversion{o: o, loaded: loaded, r: r, values: values, defaults: defaults}
+	c := &conversion{o: o, loaded: loaded, r: r, values: values, defaults: defaults, descriptions: chart.Descriptions(loaded.Chart)}
 
 	c.kind = o.Kind
 	if c.kind == "" {
@@ -176,6 +179,8 @@ type probeRun struct {
 	result     probe.Result
 	p1, p2     *probe.View
 	err1, err2 error
+	// over holds other values the witnesses need (e.g. a list's example entry).
+	over map[string]any
 }
 
 func prune(v *probe.View, keep map[string]bool) *probe.View {
@@ -253,8 +258,10 @@ func (c *conversion) run(ctx context.Context) (*Result, error) {
 		}
 	}
 
+	loopWitnesses := c.detectLoops(ctx, cands, results, runs, b1, noise)
+
 	condWitnesses := c.refineConditional(ctx, results, runs, cands)
-	witnesses := len(runs)*2 + 2 + len(condWitnesses)
+	witnesses := len(runs)*2 + 2 + len(condWitnesses) + loopWitnesses
 
 	var (
 		out *rgd.Output
@@ -284,7 +291,7 @@ func (c *conversion) run(ctx context.Context) (*Result, error) {
 
 		out, err = rgd.Assemble(rgd.Input{
 			Base: b1, Base2: b2, Noise: noise, Results: results,
-			Conditional: conditional, UserSecrets: c.userSecrets(results, b1, conditional),
+			Conditional: conditional, UserSecrets: c.userSecrets(results, b1, conditional), Descriptions: c.descriptions,
 		}, rgd.Options{
 			Name: dnsName(c.loaded.Chart.Name()), Kind: c.kind, Group: c.group, APIVersion: c.version,
 			ChartName: c.loaded.Chart.Name(), ChartVersion: chartVersion(c.loaded),
@@ -432,10 +439,15 @@ func (c *conversion) probeAll(ctx context.Context, cands []probe.Candidate, base
 
 // probeOne renders both probe points of one candidate and classifies it.
 func (c *conversion) probeOne(ctx context.Context, cand probe.Candidate, base *probe.View, noise probe.Noise) probeRun {
+	return c.probeWith(ctx, c.values, cand, base, noise)
+}
+
+// probeWith probes a candidate against the given values and their render (base).
+func (c *conversion) probeWith(ctx context.Context, vals map[string]any, cand probe.Candidate, base *probe.View, noise probe.Noise) probeRun {
 	var pr probeRun
 
-	pr.p1, pr.err1 = c.render(ctx, probe.With(c.values, cand.Path, cand.Value(1)), release1, namespace1)
-	pr.p2, pr.err2 = c.render(ctx, probe.With(c.values, cand.Path, cand.Value(2)), release1, namespace1)
+	pr.p1, pr.err1 = c.render(ctx, probe.With(vals, cand.Path, cand.Value(1)), release1, namespace1)
+	pr.p2, pr.err2 = c.render(ctx, probe.With(vals, cand.Path, cand.Value(2)), release1, namespace1)
 	pr.result = probe.Classify(cand, base, noise, pr.p1, pr.p2, pr.err1, pr.err2)
 
 	keep := touched(pr.result)
@@ -558,10 +570,23 @@ func (c *conversion) userSecrets(results []probe.Result, b1 *probe.View, conditi
 			continue
 		}
 
-		for _, t := range r.Targets {
+		targets := r.Targets
+
+		if r.Loop != nil {
+			targets = nil
+			for _, f := range r.Loop.Fields {
+				targets = append(targets, f.Targets...)
+			}
+		}
+
+		for _, t := range targets {
 			ob := b1.Objects[t.Key]
 			if ob == nil {
 				ob = conditional[t.Key] // Secrets that exist only behind a flag count too
+			}
+
+			if ob == nil && r.Loop != nil {
+				ob = r.Loop.Template.Objects[t.Key] // per-entry Secrets of a loop
 			}
 
 			if ob != nil && ob.Kind() == "Secret" && len(t.Path) > 0 &&
@@ -691,8 +716,32 @@ func (c *conversion) verify(ctx context.Context, g *graph.Graph, out *rgd.Output
 			continue
 		}
 
+		if l := results[i].Loop; l != nil {
+			for _, w := range l.Witnesses {
+				spec := c.instanceSpec(out, exposed, map[string]any{cand.Dotted(): w.Value})
+
+				diffs, err := c.compare(ctx, g, out, w.View, spec, noise)
+				if err != nil {
+					bad[cand.Dotted()] = "kro could not evaluate it: " + firstLine(err.Error())
+					break
+				}
+
+				if len(diffs) > 0 {
+					bad[cand.Dotted()] = fmt.Sprintf("with %d entries: %s", len(w.Value.([]any)), diffs[0])
+					break
+				}
+			}
+
+			continue
+		}
+
 		for point, view := range []*probe.View{runs[i].p1, runs[i].p2} {
-			spec := c.instanceSpec(out, exposed, map[string]any{cand.Dotted(): cand.Value(point + 1)})
+			over := map[string]any{cand.Dotted(): cand.Value(point + 1)}
+			for p, v := range runs[i].over {
+				over[p] = v
+			}
+
+			spec := c.instanceSpec(out, exposed, over)
 
 			diffs, err := c.compareOnly(ctx, g, out, view, spec, noise, view.Objects)
 			if err != nil {
@@ -756,8 +805,8 @@ func (c *conversion) verify(ctx context.Context, g *graph.Graph, out *rgd.Output
 	// Joint witness: every exposed non-boolean value at its second probe at once.
 	var joint []probe.Candidate
 
-	for _, cand := range cands {
-		if _, ok := exposed[cand.Dotted()]; ok && cand.Kind != probe.Bool {
+	for i, cand := range cands {
+		if _, ok := exposed[cand.Dotted()]; ok && cand.Kind != probe.Bool && results[i].Loop == nil && runs[i].over == nil {
 			joint = append(joint, cand)
 		}
 	}
@@ -882,6 +931,20 @@ func (c *conversion) compareOnly(ctx context.Context, g *graph.Graph, out *rgd.O
 			continue
 		}
 
+		if col, ok := out.Collections[n.ID]; ok {
+			if n.Ignored {
+				continue
+			}
+
+			if only != nil && !touchesPosition(only, col.Position) {
+				continue
+			}
+
+			diffs = append(diffs, compareCollection(n.ID, col.Position, n.Objects, helm, noise, out.Injected[out.Keys[n.ID]])...)
+
+			continue
+		}
+
 		if n.Ignored || len(n.Objects) == 0 {
 			continue
 		}
@@ -889,7 +952,11 @@ func (c *conversion) compareOnly(ctx context.Context, g *graph.Graph, out *rgd.O
 		got[out.Keys[n.ID]] = n.Objects[0]
 	}
 
-	for key := range out.IDs {
+	for key, id := range out.IDs {
+		if _, ok := out.Collections[id]; ok {
+			continue
+		}
+
 		if only != nil {
 			if _, ok := only[key]; !ok {
 				continue
@@ -920,6 +987,66 @@ func (c *conversion) compareOnly(ctx context.Context, g *graph.Graph, out *rgd.O
 	return diffs, nil
 }
 
+const collectionIndexLabel = "kro.run/collection-index"
+
+// helmPosition returns Helm's objects of one loop position, in entry order.
+func helmPosition(helm *probe.View, pos probe.Position) []*probe.Obj {
+	type item struct {
+		ord int
+		ob  *probe.Obj
+	}
+
+	var items []item
+
+	for _, k := range helm.Order {
+		src, ord, gvk, ok := probe.SplitKey(k)
+		if ok && src == pos.Source && gvk == pos.GVK && ord%pos.PerEntry == pos.Ordinal && !chart.IsTestHook(helm.Objects[k].Hook) {
+			items = append(items, item{ord, helm.Objects[k]})
+		}
+	}
+
+	sort.Slice(items, func(i, j int) bool { return items[i].ord < items[j].ord })
+
+	out := make([]*probe.Obj, len(items))
+	for i, x := range items {
+		out[i] = x.ob
+	}
+
+	return out
+}
+
+func touchesPosition(only map[string]*probe.Obj, pos probe.Position) bool {
+	for k := range only {
+		if src, ord, gvk, ok := probe.SplitKey(k); ok && src == pos.Source && gvk == pos.GVK && ord%pos.PerEntry == pos.Ordinal {
+			return true
+		}
+	}
+
+	return false
+}
+
+// compareCollection matches a collection's objects, in order, with Helm's objects of
+// its loop position.
+func compareCollection(id string, pos probe.Position, kro []map[string]any, helm *probe.View, noise probe.Noise, injected []manifest.Path) []string {
+	want := helmPosition(helm, pos)
+	if len(want) != len(kro) {
+		return []string{fmt.Sprintf("%s: helm renders %d objects, kro %d", id, len(want), len(kro))}
+	}
+
+	var diffs []string
+
+	for i, h := range want {
+		hv := normalizeForCompare(decodeSecretView(h.Value), h.Key, noise, nil)
+		kv := normalizeForCompare(decodeSecret(kro[i]), h.Key, noise, injected)
+
+		for _, d := range manifest.Diff(hv, kv) {
+			diffs = append(diffs, fmt.Sprintf("%s[%d] %s: helm=%v kro=%v", id, i, d.Path, d.A, d.B))
+		}
+	}
+
+	return diffs
+}
+
 // normalizeForCompare applies the declared transforms: namespace, checksum annotations,
 // generated values (noise) and injected isolation labels are not compared.
 func normalizeForCompare(v map[string]any, key string, noise probe.Noise, injected []manifest.Path) map[string]any {
@@ -927,6 +1054,15 @@ func normalizeForCompare(v map[string]any, key string, noise probe.Noise, inject
 
 	if md, ok := out["metadata"].(map[string]any); ok {
 		delete(md, "namespace")
+
+		// kro labels every collection object with its index (a declared transform).
+		if labels, ok := md["labels"].(map[string]any); ok {
+			delete(labels, collectionIndexLabel)
+
+			if len(labels) == 0 {
+				delete(md, "labels")
+			}
+		}
 	}
 
 	var drop []manifest.Path
@@ -1001,13 +1137,22 @@ func lookup(m map[string]any, p []string) (any, bool) {
 	var cur any = m
 
 	for _, s := range p {
-		mm, ok := cur.(map[string]any)
-		if !ok {
-			return nil, false
-		}
+		switch c := cur.(type) {
+		case map[string]any:
+			v, ok := c[s]
+			if !ok {
+				return nil, false
+			}
 
-		cur, ok = mm[s]
-		if !ok {
+			cur = v
+		case []any:
+			i, err := strconv.Atoi(s)
+			if err != nil || i < 0 || i >= len(c) {
+				return nil, false
+			}
+
+			cur = c[i]
+		default:
 			return nil, false
 		}
 	}

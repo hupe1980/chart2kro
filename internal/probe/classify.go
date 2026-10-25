@@ -71,6 +71,8 @@ type Result struct {
 	Targets   []Target
 	// Booleans: objects present only when flipped (Added) or only at the default (Removed).
 	Added, Removed []string
+	// Loop is set for a list exposed as a kro collection (its range loop emits objects).
+	Loop *Loop
 }
 
 // Classify compares the probe renders of c against the baseline. p1 and p2 are nil

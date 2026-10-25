@@ -88,6 +88,7 @@ Templates hide which values end up where. A value can land in several fields, in
 | **Unused** | Changing the value changes nothing in the RGD's resources, with the current defaults. |
 | **Probe** | A synthetic, type-preserving value (a distinct number, a distinct string, a flipped boolean) used to see which fields a value controls. |
 | **Witness** | One combination of values at which kro's output is compared with Helm's: the defaults, each value at its probes, and combinations. The report counts them. |
+| **Collection** | A resource with `forEach`: kro creates one object per entry of a list input. chart2kro emits one for a `range` loop that creates objects |
 | **Prerequisites** | Objects that cannot belong to one instance, such as the chart's CRDs. They go to `prerequisites.yaml` and are applied once. |
 | **Instance label** | `app.kubernetes.io/instance: ${schema.metadata.name}`, added to selectors that would otherwise match the pods of every instance. |
 

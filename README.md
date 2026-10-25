@@ -23,14 +23,14 @@
 |---|---|---|
 | ✅ | **Accepted by kro** | Every RGD is checked offline with kro's own admission schema and graph builder before it is written |
 | 🎯 | **Faithful to Helm** | An instance with the defaults deploys what `helm template` deploys |
-| 🔬 | **Verified inputs** | A value becomes an input only after kro's runtime, run offline, reproduced Helm's output for it |
-| 📋 | **Every decision explained** | Values that are not exposed are listed as *frozen*, *failed* or *unused*, with a reason code |
+| 🔬 | **Verified inputs** | A value becomes an input only after kro's runtime, run offline, reproduced Helm's output for it; loops over lists become kro collections |
+| 📋 | **Every decision explained** | Inputs carry the chart's `values.yaml` docs; values that are not exposed get a reason code |
 | 🧱 | **Isolated instances** | Names and namespaces come from the instance; selectors never reach another instance's pods |
 | 🔐 | **No secret leaks** | Secrets you pass never become defaults; generated passwords become required inputs |
-| 🚦 | **CI-ready** | `convert --check` catches stale output; `diff` catches API changes that would break instances |
+| 🚦 | **CI-ready** | `convert --check` catches stale output, `diff` catches breaking API changes, and a GitHub Action runs both |
 | 📦 | **Go library** | The CLI is a thin client of `pkg/chart2kro` |
 
-One static binary. No Helm, kubectl or cluster needed to convert. Output runs on **kro ≥ v0.9.1**.
+One static binary. No Helm, kubectl or cluster needed to convert. Output runs on **kro ≥ v0.9.2**.
 
 ---
 
@@ -135,7 +135,16 @@ The [Getting started](https://hupe1980.github.io/chart2kro/docs/getting-started/
 | `instance` | Helm release values → an instance | `chart2kro instance ./mychart --from release.yaml --name web` |
 | `version` | Version, kro and Kubernetes catalogs | `chart2kro version --format json` |
 
-In CI, `convert -o api/ --check` exits 9 when `api/` is stale, and `diff` exits 8 on breaking changes. All flags and exit codes are in the [CLI reference](https://hupe1980.github.io/chart2kro/docs/cli-reference/).
+In CI, `convert -o api/ --check` exits 9 when `api/` is stale, and `diff` exits 8 on breaking changes. On GitHub, one step does both:
+
+```yaml
+- uses: hupe1980/chart2kro@v0.2.0
+  with:
+    chart: charts/webapp
+    output-dir: api
+```
+
+See the [GitHub Action guide](https://hupe1980.github.io/chart2kro/docs/github-action/). All flags and exit codes are in the [CLI reference](https://hupe1980.github.io/chart2kro/docs/cli-reference/).
 
 ---
 
@@ -175,6 +184,7 @@ source <(chart2kro completion bash)    # also: zsh, fish, powershell
 | 🧭 [Background](https://hupe1980.github.io/chart2kro/docs/background/) | kro, RGDs and how they differ from Helm |
 | 🎛️ [Designing a platform API](https://hupe1980.github.io/chart2kro/docs/designing-apis/) | `-f`, `--expose`, API groups and CI checks |
 | 🚚 [Migrating from Helm](https://hupe1980.github.io/chart2kro/docs/migration-from-helm/) | Turn running releases into instances |
+| 🚦 [GitHub Action](https://hupe1980.github.io/chart2kro/docs/github-action/) | Check every pull request |
 | ⚙️ [How it works](https://hupe1980.github.io/chart2kro/docs/how-it-works/) | Render, probe, assemble, validate, verify |
 | 🚧 [Limitations](https://hupe1980.github.io/chart2kro/docs/limitations/) · 🩺 [Troubleshooting](https://hupe1980.github.io/chart2kro/docs/troubleshooting/) | What cannot be translated, and every exit and reason code |
 

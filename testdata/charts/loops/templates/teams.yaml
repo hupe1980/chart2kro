@@ -1,0 +1,9 @@
+{{- range .Values.teams }}
+{{- if .enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $.Release.Name }}-team-{{ .name }}
+{{- end }}
+{{- end }}

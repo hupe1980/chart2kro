@@ -16,7 +16,7 @@ import (
 
 var update = flag.Bool("update", false, "rewrite golden files")
 
-var fixtures = []string{"simple", "features", "with-database", "with-hooks", "with-subchart"}
+var fixtures = []string{"simple", "features", "with-database", "with-hooks", "with-subchart", "loops"}
 
 func convertFixture(t *testing.T, name string, o Options) *Result {
 	t.Helper()

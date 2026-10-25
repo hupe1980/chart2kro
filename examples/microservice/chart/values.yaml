@@ -1,26 +1,41 @@
+# -- Number of pods when autoscaling is disabled
 replicaCount: 2
 
 image:
+  # -- Container image repository
   repository: myorg/api-server
+  # -- Container image tag
   tag: "1.0.0"
+  # -- Image pull policy
   pullPolicy: IfNotPresent
 
 service:
+  # -- Service type
   type: ClusterIP
+  # -- Port the service and container listen on
   port: 8080
 
 ingress:
+  # -- Create an Ingress
   enabled: true
+  # -- IngressClass to use
   className: nginx
+  # -- Host name routed to the service
   host: api.example.com
+  # -- Terminate TLS at the Ingress
   tls: false
 
 autoscaling:
+  # -- Create a HorizontalPodAutoscaler
   enabled: true
+  # -- Minimum number of pods
   minReplicas: 2
+  # -- Maximum number of pods
   maxReplicas: 10
+  # -- Target average CPU utilization (percent)
   targetCPUUtilization: 75
 
+# -- Environment variables for the container
 env:
   LOG_LEVEL: info
   APP_PORT: "8080"

@@ -1,0 +1,25 @@
+{{- if .Values.workloads.enabled }}
+{{- range .Values.workloads.apps }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $.Release.Name }}-{{ .name }}
+spec:
+  replicas: {{ .replicas }}
+  selector:
+    matchLabels:
+      app: {{ .name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .name }}
+    spec:
+      containers:
+        - name: app
+          image: nginx:1.27
+          {{- with $.Values.extraArgs }}
+          args: {{ toYaml . | nindent 12 }}
+          {{- end }}
+{{- end }}
+{{- end }}

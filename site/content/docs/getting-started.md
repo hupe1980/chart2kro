@@ -21,7 +21,7 @@ Or download a [signed release](https://github.com/hupe1980/chart2kro/releases) (
 
 ## 2. Get a cluster with kro
 
-Skip this if you already have kro v0.9.1 or newer.
+Skip this if you already have kro v0.9.2 or newer.
 
 ```bash
 kind create cluster

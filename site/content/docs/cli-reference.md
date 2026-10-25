@@ -66,7 +66,7 @@ Without `-o`, the prerequisites (if any) and then the RGD are written to stdout 
 
 | Flag | |
 |---|---|
-| `--value PATH` | Explain one value: where it lands, or why it is not exposed |
+| `--value PATH` | Explain one value: its description, where it lands, or why it is not exposed |
 | `--format` | `text` (default) or `json` (the report) |
 
 The JSON report follows the [`chart2kro.io/report/v1` schema]({{ get_url(path="schemas/report-v1.json") }}).
