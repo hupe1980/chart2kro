@@ -6,7 +6,6 @@
 
 [![CI](https://github.com/hupe1980/chart2kro/actions/workflows/ci.yaml/badge.svg)](https://github.com/hupe1980/chart2kro/actions/workflows/ci.yaml)
 [![Release](https://img.shields.io/github/v/release/hupe1980/chart2kro)](https://github.com/hupe1980/chart2kro/releases)
-[![Go Report Card](https://goreportcard.com/badge/github.com/hupe1980/chart2kro)](https://goreportcard.com/report/github.com/hupe1980/chart2kro)
 [![Go Reference](https://pkg.go.dev/badge/github.com/hupe1980/chart2kro/pkg/chart2kro.svg)](https://pkg.go.dev/github.com/hupe1980/chart2kro/pkg/chart2kro)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 

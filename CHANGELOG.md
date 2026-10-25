@@ -4,6 +4,12 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-25
+
+### Fixed
+
+- Releases publish the Homebrew cask (`brew install hupe1980/tap/chart2kro`) and the build-provenance attestations for archives and the container image. The v0.1.0 release job stopped before these steps.
+
 ## [0.1.0] - 2026-10-25
 
 A rewrite: v0.0.x output was rejected by kro. Regenerate every RGD.
@@ -45,5 +51,6 @@ A rewrite: v0.0.x output was rejected by kro. Regenerate every RGD.
 - Helm SDK v4, including dependency `condition`/`tags` and `--kube-version` capabilities.
 - YAML output keeps empty maps, empty list items and nulls.
 
-[Unreleased]: https://github.com/hupe1980/chart2kro/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/hupe1980/chart2kro/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/hupe1980/chart2kro/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/hupe1980/chart2kro/compare/v0.0.2...v0.1.0

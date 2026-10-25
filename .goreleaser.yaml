@@ -69,7 +69,7 @@ homebrew_casks:
     repository:
       owner: hupe1980
       name: homebrew-tap
-      token: '{{ index .Env "HOMEBREW_TAP_GITHUB_TOKEN" }}'
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
     directory: Casks
     homepage: https://hupe1980.github.io/chart2kro/
     description: Convert Helm charts into kro ResourceGraphDefinitions, verified with kro's own code
@@ -78,7 +78,7 @@ homebrew_casks:
       name: goreleaserbot
       email: bot@goreleaser.com
     commit_msg_template: "chart2kro {{ .Tag }}"
-    skip_upload: '{{ if index .Env "HOMEBREW_TAP_GITHUB_TOKEN" }}auto{{ else }}true{{ end }}'
+    skip_upload: "{{ if .Env.HOMEBREW_TAP_GITHUB_TOKEN }}auto{{ else }}true{{ end }}"
     hooks:
       post:
         # The binaries are signed with Sigstore, not Apple notarization.

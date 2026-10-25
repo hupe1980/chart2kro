@@ -45,7 +45,8 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org/). Add
 
 ## Releasing
 
-1. Rename `## [Unreleased]` in `CHANGELOG.md` to `## [X.Y.Z] - YYYY-MM-DD` and add a new empty `[Unreleased]` section above it.
-2. Merge, then tag `vX.Y.Z` on `main` and push the tag.
+1. Run `just corpus` (real-world charts; it does not run in CI).
+2. Rename `## [Unreleased]` in `CHANGELOG.md` to `## [X.Y.Z] - YYYY-MM-DD` and add a new empty `[Unreleased]` section above it.
+3. Merge, then tag `vX.Y.Z` on `main` and push the tag.
 
 The release workflow uses that CHANGELOG section as the release notes and fails if it is missing. It builds and signs the binaries and the image, and attests the archives (see [Verifying a release](https://hupe1980.github.io/chart2kro/docs/verify-release/)).
