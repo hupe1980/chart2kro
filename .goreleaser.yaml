@@ -82,10 +82,8 @@ homebrew_casks:
     hooks:
       post:
         # The binaries are signed with Sigstore, not Apple notarization.
-        install: |
-          if OS.mac?
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/chart2kro"]
-          end
+        install_steps: |
+          run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{ .StagedPath }}/chart2kro"]
 
 changelog:
   disable: true # release notes come from CHANGELOG.md
