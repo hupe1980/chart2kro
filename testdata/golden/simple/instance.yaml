@@ -1,0 +1,7 @@
+# Example Simple instance. Every field defaults to the chart's values;
+# set only what you want to change.
+apiVersion: kro.run/v1alpha1
+kind: Simple
+metadata:
+  name: simple
+spec: {}

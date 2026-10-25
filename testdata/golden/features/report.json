@@ -1,0 +1,254 @@
+{
+  "schemaVersion": "chart2kro.io/report/v1",
+  "chart": {
+    "name": "features",
+    "version": "1.0.0",
+    "source": "../../testdata/charts/features"
+  },
+  "kind": "Features",
+  "group": "kro.run",
+  "apiVersion": "v1alpha1",
+  "kubeVersion": "1.37",
+  "kroVersion": "v0.9.4",
+  "witnesses": 38,
+  "summary": {
+    "exposed": 14,
+    "frozen": 2,
+    "failed": 0,
+    "unused": 0
+  },
+  "values": [
+    {
+      "path": "1st",
+      "outcome": "frozen",
+      "reason": "key-not-addressable",
+      "detail": "a key starts with a digit or has characters CEL cannot address"
+    },
+    {
+      "path": "credentials.enabled",
+      "outcome": "exposed",
+      "kind": "conditional",
+      "type": "boolean",
+      "default": false
+    },
+    {
+      "path": "credentials.username",
+      "outcome": "exposed",
+      "kind": "reference",
+      "type": "string",
+      "default": "app",
+      "targets": [
+        "secretCredentials.data.username"
+      ]
+    },
+    {
+      "path": "debug",
+      "outcome": "exposed",
+      "kind": "conditional",
+      "type": "boolean",
+      "default": false,
+      "targets": [
+        "deployment.spec.template.spec.containers[0].env[1].value"
+      ]
+    },
+    {
+      "path": "extraArgs",
+      "outcome": "exposed",
+      "kind": "whole",
+      "type": "[]string",
+      "default": [],
+      "targets": [
+        "deployment.spec.template.spec.containers[0].args"
+      ]
+    },
+    {
+      "path": "image.repository",
+      "outcome": "exposed",
+      "kind": "interpolation",
+      "type": "string",
+      "default": "ghcr.io/stefanprodan/podinfo",
+      "targets": [
+        "deployment.spec.template.spec.containers[0].image"
+      ]
+    },
+    {
+      "path": "image.tag",
+      "outcome": "exposed",
+      "kind": "interpolation",
+      "type": "string",
+      "default": "6.15.0",
+      "targets": [
+        "deployment.spec.template.spec.containers[0].image"
+      ]
+    },
+    {
+      "path": "ingress.enabled",
+      "outcome": "exposed",
+      "kind": "conditional",
+      "type": "boolean",
+      "default": false
+    },
+    {
+      "path": "ingress.host",
+      "outcome": "exposed",
+      "kind": "reference",
+      "type": "string",
+      "default": "example.local",
+      "targets": [
+        "ingress.spec.rules[0].host"
+      ]
+    },
+    {
+      "path": "message",
+      "outcome": "exposed",
+      "kind": "interpolation",
+      "type": "string",
+      "default": "hello",
+      "targets": [
+        "configMap.data.greeting"
+      ]
+    },
+    {
+      "path": "my-key",
+      "outcome": "exposed",
+      "kind": "reference",
+      "type": "string",
+      "default": "dashed",
+      "targets": [
+        "deployment.spec.template.spec.containers[0].env[3].value"
+      ]
+    },
+    {
+      "path": "nodeSelector",
+      "outcome": "exposed",
+      "kind": "whole",
+      "type": "object",
+      "default": {},
+      "targets": [
+        "deployment.spec.template.spec.nodeSelector"
+      ]
+    },
+    {
+      "path": "port",
+      "outcome": "exposed",
+      "kind": "interpolation",
+      "type": "integer",
+      "default": 9898,
+      "targets": [
+        "deployment.spec.template.spec.containers[0].env[0].value",
+        "deployment.spec.template.spec.containers[0].ports[0].containerPort",
+        "service.spec.ports[0].port",
+        "ingress.spec.rules[0].http.paths[0].backend.service.port.number"
+      ]
+    },
+    {
+      "path": "pullAlways",
+      "outcome": "exposed",
+      "kind": "conditional",
+      "type": "boolean",
+      "default": false,
+      "targets": [
+        "deployment.spec.template.spec.containers[0].imagePullPolicy"
+      ]
+    },
+    {
+      "path": "replicaCount",
+      "outcome": "exposed",
+      "kind": "reference",
+      "type": "integer",
+      "default": 2,
+      "targets": [
+        "deployment.spec.replicas",
+        "widget.spec.size"
+      ]
+    },
+    {
+      "path": "shout",
+      "outcome": "frozen",
+      "reason": "transformed",
+      "detail": "Deployment (features/templates/deployment.yaml) spec.template.spec.containers[0].env[2].value"
+    }
+  ],
+  "resources": [
+    {
+      "id": "configMap",
+      "kind": "ConfigMap",
+      "source": "features/templates/configmap.yaml"
+    },
+    {
+      "id": "secretCredentials",
+      "kind": "Secret",
+      "source": "features/templates/credentials.yaml",
+      "includeWhen": [
+        "${schema.spec.credentials.enabled}"
+      ]
+    },
+    {
+      "id": "deployment",
+      "kind": "Deployment",
+      "source": "features/templates/deployment.yaml"
+    },
+    {
+      "id": "ingress",
+      "kind": "Ingress",
+      "source": "features/templates/ingress.yaml",
+      "includeWhen": [
+        "${schema.spec.ingress.enabled}"
+      ]
+    },
+    {
+      "id": "clusterRoleBinding",
+      "kind": "ClusterRoleBinding",
+      "source": "features/templates/rbac.yaml"
+    },
+    {
+      "id": "secret",
+      "kind": "Secret",
+      "source": "features/templates/secret.yaml"
+    },
+    {
+      "id": "service",
+      "kind": "Service",
+      "source": "features/templates/service.yaml"
+    },
+    {
+      "id": "serviceAccount",
+      "kind": "ServiceAccount",
+      "source": "features/templates/serviceaccount.yaml"
+    },
+    {
+      "id": "widget",
+      "kind": "Widget",
+      "source": "features/templates/widget.yaml"
+    }
+  ],
+  "prerequisites": [
+    {
+      "kind": "CustomResourceDefinition",
+      "name": "widgets.example.com",
+      "source": ""
+    },
+    {
+      "kind": "ClusterRole",
+      "name": "features-shared-reader",
+      "source": ""
+    }
+  ],
+  "dropped": [
+    {
+      "kind": "Pod",
+      "name": "\u003cname\u003e-features-test",
+      "source": "features/templates/tests.yaml",
+      "reason": "test hook"
+    }
+  ],
+  "inputs": [
+    {
+      "path": "chart2kroGenerated.secret.password",
+      "reason": "generated"
+    }
+  ],
+  "warnings": [
+    "ClusterRole features-shared-reader is cluster-scoped with a fixed name; moved to prerequisites (shared by all instances)"
+  ]
+}

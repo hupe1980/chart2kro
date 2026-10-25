@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block body_class %}docs{% endblock body_class %}
+{% block content %}
+<div class="docs-layout">
+  {% include "partials/docs-nav.html" %}
+  <article class="prose">
+    <h1>{{ section.title }}</h1>
+    {{ section.content | safe }}
+    <div class="doc-cards">
+      {%- for group in section.extra.groups %}
+      <section>
+        <h2>{{ group }}</h2>
+        <ul>
+          {%- for p in section.pages %}{% if p.extra.group == group %}
+          <li><a href="{{ p.permalink | safe }}"><strong>{{ p.extra.nav | default(value=p.title) }}</strong><span>{{ p.description }}</span></a></li>
+          {%- endif %}{% endfor %}
+        </ul>
+      </section>
+      {%- endfor %}
+    </div>
+  </article>
+</div>
+{% endblock content %}

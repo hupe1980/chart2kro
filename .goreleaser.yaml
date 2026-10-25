@@ -2,23 +2,16 @@ version: 2
 
 project_name: chart2kro
 
-before:
-  hooks:
-    - go mod tidy
-
 builds:
   - id: chart2kro
     main: ./cmd/chart2kro/
     binary: chart2kro
     env:
       - CGO_ENABLED=0
-    goos:
-      - linux
-      - darwin
-      - windows
-    goarch:
-      - amd64
-      - arm64
+    flags:
+      - -trimpath
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
     ignore:
       - goos: windows
         goarch: arm64
@@ -30,38 +23,75 @@ builds:
 
 archives:
   - id: default
-    formats:
-      - tar.gz
+    formats: [tar.gz]
     format_overrides:
       - goos: windows
-        formats:
-          - zip
-    files:
-      - LICENSE
-      - README.md
+        formats: [zip]
+    files: [LICENSE, README.md, CHANGELOG.md]
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
 
 checksum:
-  name_template: "checksums.txt"
+  name_template: checksums.txt
   algorithm: sha256
 
 sboms:
   - artifacts: archive
 
+# Keyless signature of the checksum file (verifies every archive), as a Sigstore bundle.
+signs:
+  - cmd: cosign
+    artifacts: checksum
+    signature: "${artifact}.sigstore.json"
+    args: ["sign-blob", "--bundle=${signature}", "${artifact}", "--yes"]
+
+dockers_v2:
+  - images: ["ghcr.io/hupe1980/chart2kro"]
+    # Release candidates get only their exact version tag (empty tags are skipped).
+    tags:
+      - "{{ .Version }}"
+      - "{{ if not .Prerelease }}{{ .Major }}.{{ .Minor }}{{ end }}"
+      - "{{ if not .Prerelease }}latest{{ end }}"
+    dockerfile: Dockerfile.release
+    platforms: [linux/amd64, linux/arm64]
+    labels:
+      org.opencontainers.image.source: https://github.com/hupe1980/chart2kro
+      org.opencontainers.image.version: "{{ .Version }}"
+
+docker_signs:
+  - cmd: cosign
+    artifacts: manifests
+    args: ["sign", "${artifact}@${digest}", "--yes"]
+
+# Homebrew cask in hupe1980/homebrew-tap. Skipped for pre-releases and when no
+# tap token is available (the release workflow mints one from the Homebrew GitHub App).
+homebrew_casks:
+  - name: chart2kro
+    repository:
+      owner: hupe1980
+      name: homebrew-tap
+      token: '{{ index .Env "HOMEBREW_TAP_GITHUB_TOKEN" }}'
+    directory: Casks
+    homepage: https://hupe1980.github.io/chart2kro/
+    description: Convert Helm charts into kro ResourceGraphDefinitions, verified with kro's own code
+    license: Apache-2.0
+    commit_author:
+      name: goreleaserbot
+      email: bot@goreleaser.com
+    commit_msg_template: "chart2kro {{ .Tag }}"
+    skip_upload: '{{ if index .Env "HOMEBREW_TAP_GITHUB_TOKEN" }}auto{{ else }}true{{ end }}'
+    hooks:
+      post:
+        # The binaries are signed with Sigstore, not Apple notarization.
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/chart2kro"]
+          end
+
 changelog:
-  sort: asc
-  filters:
-    exclude:
-      - "^docs:"
-      - "^test:"
-      - "^ci:"
-      - "^chore:"
-      - Merge pull request
-      - Merge branch
+  disable: true # release notes come from CHANGELOG.md
 
 release:
   github:
     owner: hupe1980
     name: chart2kro
-  draft: false
   prerelease: auto

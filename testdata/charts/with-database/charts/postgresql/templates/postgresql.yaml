@@ -52,4 +52,4 @@ metadata:
     app.kubernetes.io/component: database
 type: Opaque
 data:
-  postgresql-password: cGFzc3dvcmQ=
+  postgresql-password: {{ .Values.auth.password | b64enc }}

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hupe1980.github.io/chart2kro/schemas/diff-v1.json",
+  "title": "chart2kro diff v1",
+  "description": "Output of `chart2kro diff --format json`. Every output carries schemaVersion chart2kro.io/diff/v1.",
+  "type": "object",
+  "required": ["schemaVersion", "changes"],
+  "properties": {
+    "schemaVersion": { "const": "chart2kro.io/diff/v1" },
+    "changes": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "required": ["severity", "path", "message"],
+        "properties": {
+          "severity": { "enum": ["breaking", "destructive", "compatible"] },
+          "path": { "type": "string" },
+          "message": { "type": "string" }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,30 @@
+# Real-world charts the conversion is tested against (pinned; fetched, not vendored).
+# Each must convert, pass kro validation, account for every value, be deterministic
+# and never leak an operator-supplied secret.
+- name: podinfo
+  chart: oci://ghcr.io/stefanprodan/charts/podinfo
+  version: 6.15.0
+- name: nginx
+  chart: oci://registry-1.docker.io/bitnamicharts/nginx
+  version: 25.2.11
+- name: ingress-nginx
+  chart: ingress-nginx
+  repo: https://kubernetes.github.io/ingress-nginx
+  version: 4.15.1
+- name: kube-state-metrics
+  chart: kube-state-metrics
+  repo: https://prometheus-community.github.io/helm-charts
+  version: 8.7.0
+- name: wordpress
+  chart: oci://registry-1.docker.io/bitnamicharts/wordpress
+  version: 34.2.3
+- name: kube-prometheus-stack
+  chart: kube-prometheus-stack
+  repo: https://prometheus-community.github.io/helm-charts
+  version: 92.13.1
+  # Curated: the full chart has thousands of values; platform APIs expose a few.
+  expose:
+    - prometheus.prometheusSpec.replicas
+    - prometheus.prometheusSpec.retention
+    - grafana.enabled
+    - alertmanager.alertmanagerSpec.replicas

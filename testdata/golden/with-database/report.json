@@ -1,0 +1,163 @@
+{
+  "schemaVersion": "chart2kro.io/report/v1",
+  "chart": {
+    "name": "with-database",
+    "version": "1.0.0",
+    "source": "../../testdata/charts/with-database"
+  },
+  "kind": "WithDatabase",
+  "group": "kro.run",
+  "apiVersion": "v1alpha1",
+  "kubeVersion": "1.37",
+  "kroVersion": "v0.9.4",
+  "witnesses": 30,
+  "summary": {
+    "exposed": 8,
+    "frozen": 0,
+    "failed": 0,
+    "unused": 6
+  },
+  "values": [
+    {
+      "path": "externalDatabase.database",
+      "outcome": "unused"
+    },
+    {
+      "path": "externalDatabase.existingSecret",
+      "outcome": "unused"
+    },
+    {
+      "path": "externalDatabase.host",
+      "outcome": "unused"
+    },
+    {
+      "path": "externalDatabase.port",
+      "outcome": "unused"
+    },
+    {
+      "path": "externalDatabase.user",
+      "outcome": "unused"
+    },
+    {
+      "path": "image.repository",
+      "outcome": "exposed",
+      "kind": "interpolation",
+      "type": "string",
+      "default": "myapp",
+      "targets": [
+        "deployment.spec.template.spec.containers[0].image"
+      ]
+    },
+    {
+      "path": "image.tag",
+      "outcome": "exposed",
+      "kind": "interpolation",
+      "type": "string",
+      "default": "2.0",
+      "targets": [
+        "deployment.spec.template.spec.containers[0].image"
+      ]
+    },
+    {
+      "path": "postgresql.auth.database",
+      "outcome": "exposed",
+      "kind": "reference",
+      "type": "string",
+      "default": "myapp_production",
+      "targets": [
+        "statefulSet.spec.template.spec.containers[0].env[1].value"
+      ]
+    },
+    {
+      "path": "postgresql.auth.password",
+      "outcome": "exposed",
+      "kind": "reference",
+      "type": "string",
+      "default": "changeme",
+      "targets": [
+        "secret.data.postgresql-password"
+      ]
+    },
+    {
+      "path": "postgresql.auth.username",
+      "outcome": "exposed",
+      "kind": "reference",
+      "type": "string",
+      "default": "myapp",
+      "targets": [
+        "statefulSet.spec.template.spec.containers[0].env[0].value"
+      ]
+    },
+    {
+      "path": "postgresql.enabled",
+      "outcome": "exposed",
+      "kind": "conditional",
+      "type": "boolean",
+      "default": true
+    },
+    {
+      "path": "postgresql.global",
+      "outcome": "unused"
+    },
+    {
+      "path": "replicaCount",
+      "outcome": "exposed",
+      "kind": "reference",
+      "type": "integer",
+      "default": 1,
+      "targets": [
+        "deployment.spec.replicas"
+      ]
+    },
+    {
+      "path": "service.port",
+      "outcome": "exposed",
+      "kind": "reference",
+      "type": "integer",
+      "default": 8080,
+      "targets": [
+        "deployment.spec.template.spec.containers[0].ports[0].containerPort",
+        "serviceWebapp.spec.ports[0].port",
+        "serviceWebapp.spec.ports[0].targetPort"
+      ]
+    }
+  ],
+  "resources": [
+    {
+      "id": "statefulSet",
+      "kind": "StatefulSet",
+      "source": "with-database/charts/postgresql/templates/postgresql.yaml",
+      "includeWhen": [
+        "${schema.spec.postgresql.enabled}"
+      ],
+      "isolated": true
+    },
+    {
+      "id": "servicePostgresql",
+      "kind": "Service",
+      "source": "with-database/charts/postgresql/templates/postgresql.yaml",
+      "includeWhen": [
+        "${schema.spec.postgresql.enabled}"
+      ]
+    },
+    {
+      "id": "secret",
+      "kind": "Secret",
+      "source": "with-database/charts/postgresql/templates/postgresql.yaml",
+      "includeWhen": [
+        "${schema.spec.postgresql.enabled}"
+      ]
+    },
+    {
+      "id": "deployment",
+      "kind": "Deployment",
+      "source": "with-database/templates/webapp.yaml",
+      "isolated": true
+    },
+    {
+      "id": "serviceWebapp",
+      "kind": "Service",
+      "source": "with-database/templates/webapp.yaml"
+    }
+  ]
+}

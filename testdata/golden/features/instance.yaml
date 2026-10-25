@@ -1,0 +1,8 @@
+# Example Features instance. Every field defaults to the chart's values;
+# these fields have no default and must be set:
+#   spec.chart2kroGenerated.secret.password (generated)
+apiVersion: kro.run/v1alpha1
+kind: Features
+metadata:
+  name: features
+spec: {}

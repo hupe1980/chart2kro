@@ -1,0 +1,169 @@
+apiVersion: kro.run/v1alpha1
+kind: ResourceGraphDefinition
+metadata:
+  name: microservice
+  annotations:
+    chart2kro.io/chart: microservice-0.1.0
+  labels:
+    app.kubernetes.io/managed-by: chart2kro
+spec:
+  resources:
+    - id: configMap
+      template:
+        apiVersion: v1
+        kind: ConfigMap
+        metadata:
+          name: ${schema.metadata.name}-config
+          labels:
+            app.kubernetes.io/instance: ${schema.metadata.name}
+            app.kubernetes.io/name: microservice
+        data:
+          APP_PORT: ${schema.spec.env.APP_PORT}
+          LOG_LEVEL: ${schema.spec.env.LOG_LEVEL}
+    - id: deployment
+      readyWhen:
+        - ${deployment.status.?availableReplicas.orValue(0) == deployment.spec.?replicas.orValue(1)}
+      template:
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: ${schema.metadata.name}-microservice
+          labels:
+            app.kubernetes.io/instance: ${schema.metadata.name}
+            app.kubernetes.io/name: microservice
+        spec:
+          selector:
+            matchLabels:
+              app.kubernetes.io/instance: ${schema.metadata.name}
+              app.kubernetes.io/name: microservice
+          template:
+            metadata:
+              labels:
+                app.kubernetes.io/instance: ${schema.metadata.name}
+                app.kubernetes.io/name: microservice
+            spec:
+              containers:
+                - name: microservice
+                  envFrom:
+                    - configMapRef:
+                        name: ${schema.metadata.name}-config
+                  image: ${schema.spec.image.repository}:${schema.spec.image.tag}
+                  imagePullPolicy: ${schema.spec.image.pullPolicy}
+                  livenessProbe:
+                    httpGet:
+                      path: /healthz
+                      port: http
+                    initialDelaySeconds: 10
+                    periodSeconds: 15
+                  ports:
+                    - name: http
+                      containerPort: ${schema.spec.service.port}
+                      protocol: TCP
+                  readinessProbe:
+                    httpGet:
+                      path: /readyz
+                      port: http
+                    initialDelaySeconds: 5
+                    periodSeconds: 5
+                  resources:
+                    limits:
+                      cpu: 1
+                      memory: ${schema.spec.resources.limits.memory}
+                    requests:
+                      cpu: ${schema.spec.resources.requests.cpu}
+                      memory: ${schema.spec.resources.requests.memory}
+    - id: horizontalPodAutoscaler
+      template:
+        apiVersion: autoscaling/v2
+        kind: HorizontalPodAutoscaler
+        metadata:
+          name: ${schema.metadata.name}-microservice
+          labels:
+            app.kubernetes.io/instance: ${schema.metadata.name}
+            app.kubernetes.io/name: microservice
+        spec:
+          maxReplicas: ${schema.spec.autoscaling.maxReplicas}
+          metrics:
+            - resource:
+                name: cpu
+                target:
+                  averageUtilization: ${schema.spec.autoscaling.targetCPUUtilization}
+                  type: Utilization
+              type: Resource
+          minReplicas: ${schema.spec.autoscaling.minReplicas}
+          scaleTargetRef:
+            apiVersion: apps/v1
+            kind: Deployment
+            name: ${schema.metadata.name}-microservice
+    - id: ingress
+      includeWhen:
+        - ${schema.spec.ingress.enabled}
+      template:
+        apiVersion: networking.k8s.io/v1
+        kind: Ingress
+        metadata:
+          name: ${schema.metadata.name}-microservice
+          labels:
+            app.kubernetes.io/instance: ${schema.metadata.name}
+            app.kubernetes.io/name: microservice
+        spec:
+          ingressClassName: ${schema.spec.ingress.className}
+          rules:
+            - host: ${schema.spec.ingress.host}
+              http:
+                paths:
+                  - backend:
+                      service:
+                        name: ${schema.metadata.name}-microservice
+                        port:
+                          number: ${schema.spec.service.port}
+                    path: /
+                    pathType: Prefix
+    - id: service
+      template:
+        apiVersion: v1
+        kind: Service
+        metadata:
+          name: ${schema.metadata.name}-microservice
+          labels:
+            app.kubernetes.io/instance: ${schema.metadata.name}
+            app.kubernetes.io/name: microservice
+        spec:
+          ports:
+            - name: http
+              port: ${schema.spec.service.port}
+              protocol: TCP
+              targetPort: http
+          selector:
+            app.kubernetes.io/instance: ${schema.metadata.name}
+            app.kubernetes.io/name: microservice
+          type: ${schema.spec.service.type}
+  schema:
+    apiVersion: v1alpha1
+    kind: Microservice
+    group: kro.run
+    spec:
+      autoscaling:
+        maxReplicas: integer | default=10
+        minReplicas: integer | default=2
+        targetCPUUtilization: integer | default=75
+      env:
+        APP_PORT: string | default="8080"
+        LOG_LEVEL: string | default="info"
+      image:
+        pullPolicy: string | default="IfNotPresent"
+        repository: string | default="myorg/api-server"
+        tag: string | default="1.0.0"
+      ingress:
+        className: string | default="nginx"
+        enabled: boolean | default=true
+        host: string | default="api.example.com"
+      resources:
+        limits:
+          memory: string | default="512Mi"
+        requests:
+          cpu: string | default="200m"
+          memory: string | default="256Mi"
+      service:
+        port: integer | default=8080
+        type: string | default="ClusterIP"

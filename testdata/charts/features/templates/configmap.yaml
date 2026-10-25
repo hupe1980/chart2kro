@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "features.fullname" . }}
+data:
+  greeting: "{{ .Values.message }}, world"
+  script.sh: |
+    echo "${HOME:-/root}"

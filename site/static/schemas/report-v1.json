@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hupe1980.github.io/chart2kro/schemas/report-v1.json",
+  "title": "chart2kro conversion report v1 (mirrors pkg/chart2kro/report.go)",
+  "type": "object",
+  "required": ["schemaVersion", "chart", "kind", "group", "apiVersion", "kubeVersion", "kroVersion", "witnesses", "summary", "values", "resources"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "const": "chart2kro.io/report/v1" },
+    "chart": {
+      "type": "object",
+      "required": ["name", "version", "source"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "version": { "type": "string" },
+        "source": { "type": "string" },
+        "digest": { "type": "string" }
+      }
+    },
+    "kind": { "type": "string" },
+    "group": { "type": "string" },
+    "apiVersion": { "type": "string" },
+    "kubeVersion": { "type": "string" },
+    "kroVersion": { "type": "string" },
+    "witnesses": { "type": "integer", "minimum": 2 },
+    "summary": {
+      "type": "object",
+      "required": ["exposed", "frozen", "failed", "unused"],
+      "additionalProperties": false,
+      "properties": {
+        "exposed": { "type": "integer", "minimum": 0 },
+        "frozen": { "type": "integer", "minimum": 0 },
+        "failed": { "type": "integer", "minimum": 0 },
+        "unused": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "values": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "outcome"],
+        "additionalProperties": false,
+        "properties": {
+          "path": { "type": "string" },
+          "outcome": { "enum": ["exposed", "frozen", "failed", "unused"] },
+          "reason": {
+            "enum": [
+              "render-failed", "changes-structure", "transformed", "adds-or-removes-objects", "toggles-fields",
+              "branch-types-differ", "null-default", "key-not-addressable", "shares-field", "verification-mismatch",
+              "kro-type-check", "unknown-kind", "affects-only-dropped-objects", "user-secret"
+            ]
+          },
+          "detail": { "type": "string" },
+          "kind": { "enum": ["reference", "interpolation", "conditional", "whole"] },
+          "type": { "enum": ["boolean", "integer", "float", "string", "[]string", "[]object", "object"] },
+          "default": {},
+          "targets": { "type": "array", "items": { "type": "string", "description": "<resourceId>.<field path>" } }
+        },
+        "allOf": [
+          { "if": { "properties": { "outcome": { "const": "exposed" } } }, "then": { "required": ["kind", "type"] } },
+          { "if": { "properties": { "outcome": { "enum": ["frozen", "failed"] } } }, "then": { "required": ["reason"] } }
+        ]
+      }
+    },
+    "resources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "kind", "source"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string" },
+          "kind": { "type": "string" },
+          "source": { "type": "string" },
+          "includeWhen": { "type": "array", "items": { "type": "string" } },
+          "isolated": { "type": "boolean" }
+        }
+      }
+    },
+    "prerequisites": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["kind", "name", "source"],
+        "additionalProperties": false,
+        "properties": { "kind": { "type": "string" }, "name": { "type": "string" }, "source": { "type": "string" } }
+      }
+    },
+    "dropped": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["kind", "name", "source", "reason"],
+        "additionalProperties": false,
+        "properties": { "kind": { "type": "string" }, "name": { "type": "string" }, "source": { "type": "string" }, "reason": { "type": "string" } }
+      }
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "reason"],
+        "additionalProperties": false,
+        "properties": { "path": { "type": "string" }, "reason": { "enum": ["user-secret", "generated"] } }
+      }
+    },
+    "warnings": { "type": "array", "items": { "type": "string" } }
+  }
+}

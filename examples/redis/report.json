@@ -1,0 +1,173 @@
+{
+  "schemaVersion": "chart2kro.io/report/v1",
+  "chart": {
+    "name": "redis",
+    "version": "0.1.0",
+    "source": "examples/redis/chart"
+  },
+  "kind": "Redis",
+  "group": "kro.run",
+  "apiVersion": "v1alpha1",
+  "kubeVersion": "1.37",
+  "kroVersion": "v0.9.4",
+  "witnesses": 30,
+  "summary": {
+    "exposed": 11,
+    "frozen": 3,
+    "failed": 0,
+    "unused": 0
+  },
+  "values": [
+    {
+      "path": "image.pullPolicy",
+      "outcome": "exposed",
+      "kind": "reference",
+      "type": "string",
+      "default": "IfNotPresent",
+      "targets": [
+        "statefulSet.spec.template.spec.containers[0].imagePullPolicy"
+      ]
+    },
+    {
+      "path": "image.repository",
+      "outcome": "exposed",
+      "kind": "interpolation",
+      "type": "string",
+      "default": "redis",
+      "targets": [
+        "statefulSet.spec.template.spec.containers[0].image"
+      ]
+    },
+    {
+      "path": "image.tag",
+      "outcome": "exposed",
+      "kind": "interpolation",
+      "type": "string",
+      "default": "7.4-alpine",
+      "targets": [
+        "statefulSet.spec.template.spec.containers[0].image"
+      ]
+    },
+    {
+      "path": "maxmemoryPolicy",
+      "outcome": "exposed",
+      "kind": "interpolation",
+      "type": "string",
+      "default": "allkeys-lru",
+      "targets": [
+        "configMap.data.\"redis.conf\""
+      ]
+    },
+    {
+      "path": "password",
+      "outcome": "frozen",
+      "reason": "adds-or-removes-objects",
+      "detail": "objects Secret (redis/templates/secret.yaml)"
+    },
+    {
+      "path": "persistence.enabled",
+      "outcome": "frozen",
+      "reason": "toggles-fields",
+      "detail": "StatefulSet (redis/templates/statefulset.yaml) spec.template.spec.containers[0].volumeMounts"
+    },
+    {
+      "path": "persistence.size",
+      "outcome": "exposed",
+      "kind": "reference",
+      "type": "string",
+      "default": "1Gi",
+      "targets": [
+        "statefulSet.spec.volumeClaimTemplates[0].spec.resources.requests.storage"
+      ]
+    },
+    {
+      "path": "persistence.storageClass",
+      "outcome": "frozen",
+      "reason": "changes-structure",
+      "detail": "StatefulSet (redis/templates/statefulset.yaml) spec.volumeClaimTemplates[0].spec.storageClassName"
+    },
+    {
+      "path": "resources.limits.cpu",
+      "outcome": "exposed",
+      "kind": "reference",
+      "type": "string",
+      "default": "500m",
+      "targets": [
+        "statefulSet.spec.template.spec.containers[0].resources.limits.cpu"
+      ]
+    },
+    {
+      "path": "resources.limits.memory",
+      "outcome": "exposed",
+      "kind": "reference",
+      "type": "string",
+      "default": "512Mi",
+      "targets": [
+        "statefulSet.spec.template.spec.containers[0].resources.limits.memory"
+      ]
+    },
+    {
+      "path": "resources.requests.cpu",
+      "outcome": "exposed",
+      "kind": "reference",
+      "type": "string",
+      "default": "100m",
+      "targets": [
+        "statefulSet.spec.template.spec.containers[0].resources.requests.cpu"
+      ]
+    },
+    {
+      "path": "resources.requests.memory",
+      "outcome": "exposed",
+      "kind": "reference",
+      "type": "string",
+      "default": "128Mi",
+      "targets": [
+        "statefulSet.spec.template.spec.containers[0].resources.requests.memory"
+      ]
+    },
+    {
+      "path": "service.port",
+      "outcome": "exposed",
+      "kind": "reference",
+      "type": "integer",
+      "default": 6379,
+      "targets": [
+        "service.spec.ports[0].port",
+        "serviceHeadless.spec.ports[0].port"
+      ]
+    },
+    {
+      "path": "service.type",
+      "outcome": "exposed",
+      "kind": "reference",
+      "type": "string",
+      "default": "ClusterIP",
+      "targets": [
+        "service.spec.type"
+      ]
+    }
+  ],
+  "resources": [
+    {
+      "id": "configMap",
+      "kind": "ConfigMap",
+      "source": "redis/templates/configmap.yaml"
+    },
+    {
+      "id": "service",
+      "kind": "Service",
+      "source": "redis/templates/service.yaml"
+    },
+    {
+      "id": "serviceHeadless",
+      "kind": "Service",
+      "source": "redis/templates/service.yaml"
+    },
+    {
+      "id": "statefulSet",
+      "kind": "StatefulSet",
+      "source": "redis/templates/statefulset.yaml"
+    }
+  ]
+}

@@ -1,0 +1,87 @@
+{
+  "schemaVersion": "chart2kro.io/report/v1",
+  "chart": {
+    "name": "simple",
+    "version": "1.0.0",
+    "source": "../../testdata/charts/simple"
+  },
+  "kind": "Simple",
+  "group": "kro.run",
+  "apiVersion": "v1alpha1",
+  "kubeVersion": "1.37",
+  "kroVersion": "v0.9.4",
+  "witnesses": 12,
+  "summary": {
+    "exposed": 5,
+    "frozen": 0,
+    "failed": 0,
+    "unused": 0
+  },
+  "values": [
+    {
+      "path": "image.repository",
+      "outcome": "exposed",
+      "kind": "interpolation",
+      "type": "string",
+      "default": "nginx",
+      "targets": [
+        "deployment.spec.template.spec.containers[0].image"
+      ]
+    },
+    {
+      "path": "image.tag",
+      "outcome": "exposed",
+      "kind": "interpolation",
+      "type": "string",
+      "default": "1.21",
+      "targets": [
+        "deployment.spec.template.spec.containers[0].image"
+      ]
+    },
+    {
+      "path": "replicaCount",
+      "outcome": "exposed",
+      "kind": "reference",
+      "type": "integer",
+      "default": 1,
+      "targets": [
+        "deployment.spec.replicas"
+      ]
+    },
+    {
+      "path": "service.port",
+      "outcome": "exposed",
+      "kind": "reference",
+      "type": "integer",
+      "default": 80,
+      "targets": [
+        "deployment.spec.template.spec.containers[0].ports[0].containerPort",
+        "service.spec.ports[0].port",
+        "service.spec.ports[0].targetPort"
+      ]
+    },
+    {
+      "path": "service.type",
+      "outcome": "exposed",
+      "kind": "reference",
+      "type": "string",
+      "default": "ClusterIP",
+      "targets": [
+        "service.spec.type"
+      ]
+    }
+  ],
+  "resources": [
+    {
+      "id": "deployment",
+      "kind": "Deployment",
+      "source": "simple/templates/deployment.yaml",
+      "isolated": true
+    },
+    {
+      "id": "service",
+      "kind": "Service",
+      "source": "simple/templates/service.yaml"
+    }
+  ]
+}

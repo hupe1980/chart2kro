@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block body_class %}docs{% endblock body_class %}
+{% block jsonld %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TechArticle",
+      "headline": {{ page.title | json_encode() | safe }},
+      "description": {{ page.description | default(value=config.description) | json_encode() | safe }},
+      "url": "{{ page.permalink | safe }}",
+      "author": { "@type": "Person", "name": "{{ config.extra.author }}" },
+      "about": "chart2kro"
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "{{ config.base_url }}/" },
+        { "@type": "ListItem", "position": 2, "name": "Docs", "item": "{{ get_url(path='@/docs/_index.md') }}" },
+        { "@type": "ListItem", "position": 3, "name": {{ page.title | json_encode() | safe }}, "item": "{{ page.permalink | safe }}" }
+      ]
+    }
+  ]
+}
+</script>
+{% endblock jsonld %}
+{% block content %}
+<div class="docs-layout">
+  {% include "partials/docs-nav.html" %}
+  <article class="prose">
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="{{ get_url(path='@/docs/_index.md') }}">Docs</a> <span aria-hidden="true">/</span> {{ page.extra.group }}</nav>
+    <h1>{{ page.title }}</h1>
+    {% if page.description %}<p class="lead">{{ page.description }}</p>{% endif %}
+    {{ page.content | safe }}
+    <footer class="doc-foot">
+      <a href="{{ config.extra.edit_base }}{{ page.relative_path }}" rel="noopener">Edit this page on GitHub</a>
+      <div class="pager">
+        {%- if page.lower %}<a class="pager__prev" href="{{ page.lower.permalink | safe }}"><span>Previous</span>{{ page.lower.extra.nav | default(value=page.lower.title) }}</a>{% endif -%}
+        {%- if page.higher %}<a class="pager__next" href="{{ page.higher.permalink | safe }}"><span>Next</span>{{ page.higher.extra.nav | default(value=page.higher.title) }}</a>{% endif -%}
+      </div>
+    </footer>
+  </article>
+  {% if page.toc | length > 0 %}
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <ul>
+      {%- for h in page.toc %}
+      <li><a href="{{ h.permalink | safe }}">{{ h.title }}</a>
+        {%- if h.children %}<ul>{% for c in h.children %}<li><a href="{{ c.permalink | safe }}">{{ c.title }}</a></li>{% endfor %}</ul>{% endif %}</li>
+      {%- endfor %}
+    </ul>
+  </aside>
+  {% endif %}
+</div>
+{% endblock content %}

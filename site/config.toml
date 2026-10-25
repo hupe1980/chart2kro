@@ -1,0 +1,40 @@
+base_url = "https://hupe1980.github.io/chart2kro"
+title = "chart2kro: Helm charts to kro ResourceGraphDefinitions"
+description = "Convert Helm charts into kro ResourceGraphDefinitions that kro accepts, that behave like the chart, and that explain every decision. Verified offline with kro's own code."
+default_language = "en"
+compile_sass = true
+minify_html = true
+build_search_index = true
+generate_sitemap = true
+generate_robots_txt = true
+generate_feeds = false
+
+[search]
+index_format = "fuse_json"
+include_title = true
+include_description = true
+include_content = true
+truncate_content_length = 2000
+
+[markdown]
+smart_punctuation = false
+bottom_footnotes = true
+external_links_target_blank = false
+external_links_no_referrer = true
+
+[markdown.highlighting]
+light_theme = "github-light"
+dark_theme = "github-dark"
+style = "class"
+
+[slugify]
+paths = "on"
+anchors = "on"
+
+[extra]
+repo = "https://github.com/hupe1980/chart2kro"
+edit_base = "https://github.com/hupe1980/chart2kro/edit/main/site/content/"
+author = "hupe1980"
+kro_version = "v0.9.4"
+kro_min = "v0.9.1"
+og_image = "img/og.png"
